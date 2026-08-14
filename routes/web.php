@@ -24,6 +24,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index']);
     Route::get('/profile', function () { return view('profile'); })->name('profile');
+    Route::get('/test-amharic', function () {
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('test-amharic');
+        return $pdf->download('amharic-test.pdf');
+    });
     Route::get('/help', function () { return view('help'); })->name('help');
     
     // Items with price update route

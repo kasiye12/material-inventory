@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\DeliveryReportExport;
 use App\Exports\ProjectLedgerExport;
 use App\Exports\WeeklyTransferExport;
+use App\Exports\WeeklyStockStatusExport;
 use App\Services\ActivityLogger;
 
 class ReportExportController extends Controller
@@ -180,7 +181,7 @@ class ReportExportController extends Controller
         $data = compact('transfers', 'companyName', 'companyNameEn', 'documentNo', 'dateFrom', 'dateTo');
         
         if ($format === 'excel') {
-            return $this->exportWeeklyStockStatusCsv($transfers, $companyName, $companyNameEn, $documentNo);
+            return Excel::download(new WeeklyStockStatusExport($transfers, $dateFrom, $dateTo), 'Weekly_Stock_Status_' . date('Y-m-d') . '.xlsx');
         }
         
         $pdf = Pdf::loadView('reports.exports.weekly-stock-status-pdf', $data);

@@ -3,13 +3,13 @@
 @section('page-title', 'Current Stock Balance Report')
 
 @section('content')
-<!-- Filter Form -->
 <div class="card mb-3 no-print">
     <div class="card-body">
         <form method="GET" action="{{ route('reports.stock-balance') }}" class="row align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-5">
                 <label class="form-label small fw-bold">Project/Location</label>
-                <select class="form-select" name="location_id" onchange="this.form.submit()">
+                <select class="form-select select2-search" name="location_id" onchange="this.form.submit()" style="width: 100%;">
+                    <option value="">🔍 Search project...</option>
                     @foreach($locations as $loc)
                     <option value="{{ $loc->id }}" {{ $locationId == $loc->id ? 'selected' : '' }}>
                         {{ $loc->code }} - {{ $loc->name }}
@@ -26,7 +26,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <button type="button" class="btn btn-success w-100" onclick="window.print()">
                     <i class="fas fa-print me-1"></i> Print
                 </button>
@@ -35,11 +35,9 @@
     </div>
 </div>
 
-<!-- Report Content -->
 <div class="print-area">
     <div class="card">
         <div class="card-body p-4">
-            <!-- Header with Logo -->
             <div class="report-header">
                 <div class="logo-container">
                     <img src="{{ asset('images/company-logo.png') }}" alt="TNT Logo">
@@ -47,31 +45,21 @@
                 <div class="company-info">
                     <h5 class="fw-bold mb-0">ቲ. ኤን. ቲ. ኮንስትራክሽንና ንግድ ሥራዎች</h5>
                     <p class="mb-0" style="font-style: italic;">TNT Construction & Trading</p>
-                    <h6 class="mt-1 mb-0 text-decoration-underline">{{ $selectedLocation->name ?? '' }}</h6>
                 </div>
                 <div class="doc-info">
-                    <strong>Document No:</strong> OF/TNT/SUP/033<br>
                     <strong>Date:</strong> {{ date('d/m/Y') }}
                 </div>
             </div>
             
-            <!-- Title -->
-            <div class="report-title">
-                Stock Balance Report
-            </div>
+            <div class="report-title">Stock Balance Report</div>
             
             <div class="table-responsive">
                 <table class="table table-bordered table-sm report-table">
                     <thead>
                         <tr>
-                            <th class="text-center">#</th>
-                            <th class="text-center">Code</th>
-                            <th>Item Name</th>
-                            <th>Category</th>
-                            <th class="text-center">Unit</th>
-                            <th class="text-end">Current Stock</th>
-                            <th class="text-end">Min Level</th>
-                            <th class="text-center">Status</th>
+                            <th class="text-center">#</th><th class="text-center">Code</th><th>Item Name</th>
+                            <th>Category</th><th class="text-center">Unit</th>
+                            <th class="text-end">Current Stock</th><th class="text-end">Min Level</th><th class="text-center">Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -104,14 +92,7 @@
 </div>
 
 <style>
-    .report-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        border-bottom: 3px double #1e293b;
-        padding-bottom: 12px;
-        margin-bottom: 15px;
-    }
+    .report-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 3px double #1e293b; padding-bottom: 12px; margin-bottom: 15px; }
     .logo-container { width: 90px; text-align: center; }
     .logo-container img { width: 90px; height: 45px; object-fit: contain; }
     .company-info { text-align: center; flex: 1; }
@@ -119,13 +100,23 @@
     .report-title { text-align: center; font-size: 14px; font-weight: bold; text-transform: uppercase; background: #fbbf24; padding: 8px; margin: 15px 0; }
     .report-table th { background: #4b5563; color: #fff; border: 1px solid #000; }
     .report-table td { border: 1px solid #000; }
-    
     @media print {
         body { background: #fff !important; padding: 0 !important; margin: 0 !important; }
         .sidebar, .no-print, .breadcrumb, #sidebar { display: none !important; }
         .main-content { margin-left: 0 !important; padding: 0 !important; width: 100% !important; }
-        .card { box-shadow: none !important; border: none !important; border-radius: 0 !important; }
-        .card-body { padding: 20px !important; }
+        .card { box-shadow: none !important; border: none !important; }
     }
 </style>
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+    $('.select2-search').select2({
+        placeholder: '🔍 Search project by code or name...',
+        allowClear: true,
+        width: '100%',
+    });
+});
+</script>
+@endpush
 @endsection

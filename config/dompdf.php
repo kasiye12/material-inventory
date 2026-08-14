@@ -14,6 +14,7 @@ return [
             'file://' => ['rules' => []],
             'http://' => ['rules' => []],
             'https://' => ['rules' => []],
+            'data:' => ['rules' => []],
         ],
         'log_output_file' => null,
         'enable_font_subsetting' => false,

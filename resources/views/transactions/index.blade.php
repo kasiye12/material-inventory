@@ -38,8 +38,8 @@
             </div>
             <div class="col-md-3">
                 <label class="form-label small">Location</label>
-                <select class="form-select" id="locationFilter">
-                    <option value="">All Locations</option>
+                <select class="form-select select2-search" id="locationFilter" style="width: 100%;">
+                    <option value="">🔍 Search location...</option>
                     @foreach($locations as $loc)
                     <option value="{{ $loc->id }}">{{ $loc->code }} - {{ $loc->name }}</option>
                     @endforeach
@@ -53,22 +53,13 @@
             </div>
         </div>
 
-        <!-- Transactions Table -->
         <div class="table-responsive">
             <table class="table table-bordered table-hover" id="transactionsTable">
                 <thead class="table-light">
                     <tr>
-                        <th>#</th>
-                        <th>Date</th>
-                        <th>Trans No</th>
-                        <th>Type</th>
-                        <th>Item</th>
-                        <th>Qty</th>
-                        <th>Unit</th>
-                        <th>From</th>
-                        <th>To</th>
-                        <th>Reference</th>
-                        <th>Actions</th>
+                        <th>#</th><th>Date</th><th>Trans No</th><th>Type</th>
+                        <th>Item</th><th>Qty</th><th>Unit</th><th>From</th><th>To</th>
+                        <th>Reference</th><th>Actions</th>
                     </tr>
                 </thead>
             </table>
@@ -90,20 +81,19 @@
                 <div class="modal-body">
                     <input type="hidden" id="trans_id" name="id">
                     
-                    <!-- Row 1: Date and Type -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Date <span class="text-danger">*</span></label>
+                            <label class="form-label fw-bold">Date *</label>
                             <input type="date" class="form-control" id="trans_date" name="transaction_date" 
                                    value="{{ date('Y-m-d') }}" required>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label fw-bold">Transaction Type <span class="text-danger">*</span></label>
+                            <label class="form-label fw-bold">Transaction Type *</label>
                             <select class="form-select" id="trans_type" name="transaction_type" onchange="updateFormFields()" required>
                                 <option value="">-- Select Type --</option>
-                                <option value="GRV">📥 GRV - Goods Received Voucher</option>
+                                <option value="GRV">📥 GRV - Goods Received</option>
                                 <option value="ISTRV">📥 ISTRV - Inter Store Transfer Received</option>
-                                <option value="SIV">📤 SIV - Store Issue Voucher</option>
+                                <option value="SIV">📤 SIV - Store Issue</option>
                                 <option value="TRANSFER_OUT">📤 Transfer Out</option>
                                 <option value="STORE_RETURN">🔄 Store Return</option>
                                 <option value="BEGINNING_BALANCE">📊 Beginning Balance</option>
@@ -111,81 +101,62 @@
                         </div>
                     </div>
 
-                    <!-- Info Alert -->
-                    <div id="typeInfo" class="alert alert-info mb-3" style="display:none;">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <span id="typeInfoText"></span>
-                    </div>
-
-                    <!-- Item Selection -->
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Item <span class="text-danger">*</span></label>
-                        <select class="form-select" id="trans_item" name="item_id" style="width: 100%;" required>
-                            <option value="">🔍 Search and select item...</option>
+                        <label class="form-label fw-bold">Item *</label>
+                        <select class="form-select select2-item" id="trans_item" name="item_id" style="width: 100%;">
+                            <option value="">🔍 Search item...</option>
                         </select>
                     </div>
 
-                    <!-- Location Fields -->
                     <div class="row">
                         <div class="col-md-6 mb-3" id="fromLocationDiv">
-                            <label class="form-label fw-bold" id="fromLocationLabel">
-                                From Location <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select" id="trans_from" name="from_location_id">
-                                <option value="">-- Select From Location --</option>
+                            <label class="form-label fw-bold">From Location *</label>
+                            <select class="form-select select2-location" id="trans_from" name="from_location_id" style="width: 100%;">
+                                <option value="">🔍 Search location...</option>
                                 @foreach($locations as $loc)
-                                <option value="{{ $loc->id }}">📍 {{ $loc->code }} - {{ $loc->name }}</option>
+                                <option value="{{ $loc->id }}">{{ $loc->code }} - {{ $loc->name }}</option>
                                 @endforeach
                             </select>
                         </div>
                         <div class="col-md-6 mb-3" id="toLocationDiv">
-                            <label class="form-label fw-bold" id="toLocationLabel">
-                                To Location <span class="text-danger">*</span>
-                            </label>
-                            <select class="form-select" id="trans_to" name="to_location_id">
-                                <option value="">-- Select To Location --</option>
+                            <label class="form-label fw-bold">To Location *</label>
+                            <select class="form-select select2-location" id="trans_to" name="to_location_id" style="width: 100%;">
+                                <option value="">🔍 Search location...</option>
                                 @foreach($locations as $loc)
-                                <option value="{{ $loc->id }}">📍 {{ $loc->code }} - {{ $loc->name }}</option>
+                                <option value="{{ $loc->id }}">{{ $loc->code }} - {{ $loc->name }}</option>
                                 @endforeach
                             </select>
                         </div>
                     </div>
 
-                    <!-- Quantity -->
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Quantity <span class="text-danger">*</span></label>
+                        <label class="form-label fw-bold">Quantity *</label>
                         <input type="number" class="form-control" id="trans_qty" name="quantity" 
                                step="0.01" min="0.01" placeholder="Enter quantity" required>
-                        <small class="text-muted" id="stockInfo"></small>
                     </div>
 
-                    <!-- Reference Fields -->
                     <div class="row">
-                        <div class="col-md-6 mb-3" id="refNumberDiv">
-                            <label class="form-label" id="refNumberLabel">Reference Number</label>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Reference Number</label>
                             <input type="text" class="form-control" id="trans_ref" name="reference_number" 
-                                   placeholder="Enter reference number">
+                                   placeholder="ISTV/GRV/SIV No">
                         </div>
-                        <div class="col-md-6 mb-3" id="docNumberDiv">
-                            <label class="form-label" id="docNumberLabel">Document Number</label>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Document Number</label>
                             <input type="text" class="form-control" id="trans_doc" name="document_number" 
-                                   placeholder="Enter document number">
+                                   placeholder="Doc Number">
                         </div>
                     </div>
 
-                    <!-- Remarks -->
                     <div class="mb-3">
                         <label class="form-label">Remarks</label>
-                        <textarea class="form-control" id="trans_remarks" name="remarks" rows="2" 
-                                  placeholder="Any additional notes..."></textarea>
+                        <textarea class="form-control" id="trans_remarks" name="remarks" rows="2"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i> Cancel
-                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary" id="submitBtn">
-                        <i class="fas fa-save me-1"></i> Save Transaction
+                        <i class="fas fa-save me-1"></i> Save
                     </button>
                 </div>
             </form>
@@ -196,7 +167,7 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Initialize Select2 for item search
+    // Initialize Select2 for item search (AJAX)
     $('#trans_item').select2({
         dropdownParent: $('#transactionModal'),
         placeholder: '🔍 Search item by name or code...',
@@ -211,26 +182,29 @@ $(document).ready(function() {
             processResults: function(data) {
                 return {
                     results: data.map(function(item) {
-                        return { 
-                            id: item.id, 
-                            text: item.code + ' - ' + item.name + ' [' + item.unit + ']',
-                            unit: item.unit
-                        };
+                        return { id: item.id, text: item.code + ' - ' + item.name + ' [' + item.unit + ']' };
                     })
                 };
             }
         }
     });
 
-    // When item selected, show unit
-    $('#trans_item').on('select2:select', function(e) {
-        var unit = e.params.data.unit;
-        if (unit) {
-            $('#stockInfo').text('Unit: ' + unit);
-        }
+    // Initialize Select2 for location dropdowns (local data with search)
+    $('.select2-location').select2({
+        dropdownParent: $('#transactionModal'),
+        placeholder: '🔍 Search location by code or name...',
+        allowClear: true,
+        width: '100%',
     });
 
-    // Transactions DataTable
+    // Initialize Select2 for filter
+    $('.select2-search').select2({
+        placeholder: '🔍 Search location...',
+        allowClear: true,
+        width: '100%',
+    });
+
+    // DataTable
     var table = $('#transactionsTable').DataTable({
         processing: true,
         serverSide: true,
@@ -259,15 +233,9 @@ $(document).ready(function() {
                 render: function(data) {
                     return `
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-info btn-sm" onclick="viewTransaction(${data.id})" title="View">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn btn-warning btn-sm" onclick="editTransaction(${data.id})" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteTransaction(${data.id})" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            <button class="btn btn-info btn-sm" onclick="viewTransaction(${data.id})"><i class="fas fa-eye"></i></button>
+                            <button class="btn btn-warning btn-sm" onclick="editTransaction(${data.id})"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteTransaction(${data.id})"><i class="fas fa-trash"></i></button>
                         </div>
                     `;
                 }
@@ -277,156 +245,63 @@ $(document).ready(function() {
         pageLength: 25
     });
 
-    // Filter changes
-    $('#dateFrom, #dateTo, #typeFilter, #locationFilter').change(function() {
-        table.ajax.reload();
-    });
+    $('#dateFrom, #dateTo, #typeFilter').change(function() { table.ajax.reload(); });
+    $('#locationFilter').on('change', function() { table.ajax.reload(); });
 
     // Form submit
     $('#transactionForm').submit(function(e) {
         e.preventDefault();
-        
         var id = $('#trans_id').val();
         var url = id ? '/transactions/' + id : '/transactions';
         var method = id ? 'PUT' : 'POST';
-        var type = $('#trans_type').val();
-        
-        // Validate based on type
-        if (!type) {
-            Toast.fire({ icon: 'error', title: 'Please select transaction type' });
-            return false;
-        }
-        
-        if (!id) {
-            // Only validate stock for new transactions
-            if (['SIV', 'TRANSFER_OUT'].includes(type) && !$('#trans_from').val()) {
-                Toast.fire({ icon: 'error', title: 'From Location is required for this type' });
-                return false;
-            }
-            if (['GRV', 'ISTRV', 'STORE_RETURN', 'BEGINNING_BALANCE'].includes(type) && !$('#trans_to').val()) {
-                Toast.fire({ icon: 'error', title: 'To Location is required for this type' });
-                return false;
-            }
-        }
-        
-        Swal.fire({
-            title: 'Saving...',
-            allowOutsideClick: false,
-            didOpen: () => { Swal.showLoading(); }
-        });
         
         $.ajax({
-            url: url,
-            type: method,
-            data: $(this).serialize(),
-            success: function(response) {
-                Swal.close();
+            url: url, type: method, data: $(this).serialize(),
+            success: function(r) {
                 $('#transactionModal').modal('hide');
                 table.ajax.reload();
-                Toast.fire({ icon: 'success', title: response.message });
+                Toast.fire({ icon: 'success', title: r.message });
                 resetForm();
             },
             error: function(xhr) {
-                Swal.close();
-                Toast.fire({ icon: 'error', title: xhr.responseJSON?.message || 'Error saving transaction' });
+                Toast.fire({ icon: 'error', title: xhr.responseJSON?.message || 'Error' });
             }
         });
     });
 });
 
-// Update form fields based on transaction type
 function updateFormFields() {
     var type = $('#trans_type').val();
-    var infoText = '';
     
-    // Reset
     $('#fromLocationDiv').show();
     $('#toLocationDiv').show();
     $('#trans_from').prop('required', false);
     $('#trans_to').prop('required', false);
-    $('#refNumberDiv').show();
-    $('#docNumberDiv').show();
     
-    switch(type) {
-        case 'GRV':
-            infoText = 'Goods Received Voucher - Items received from supplier';
-            $('#fromLocationDiv').hide();
-            $('#toLocationLabel').html('Receive To (Store/Location) <span class="text-danger">*</span>');
-            $('#trans_to').prop('required', true);
-            $('#refNumberLabel').text('GRV Pad Ref. No.');
-            $('#docNumberLabel').text('Supplier Invoice No.');
-            break;
-            
-        case 'ISTRV':
-            infoText = 'Inter Store Transfer Received - Items received from another store';
-            $('#fromLocationLabel').html('Received From (Source Store)');
-            $('#toLocationLabel').html('Receive To (Destination) <span class="text-danger">*</span>');
-            $('#trans_to').prop('required', true);
-            $('#refNumberLabel').text('ISTRV No.');
-            $('#docNumberLabel').text('Transfer Document No.');
-            break;
-            
-        case 'SIV':
-            infoText = 'Store Issue Voucher - Items issued to site/project';
-            $('#fromLocationLabel').html('Issue From (Store) <span class="text-danger">*</span>');
-            $('#trans_from').prop('required', true);
-            $('#toLocationDiv').hide();
-            $('#refNumberLabel').text('SIV Pad Ref. No.');
-            $('#docNumberDiv').hide();
-            break;
-            
-        case 'TRANSFER_OUT':
-            infoText = 'Transfer Out - Items transferred to another location';
-            $('#fromLocationLabel').html('Transfer From <span class="text-danger">*</span>');
-            $('#trans_from').prop('required', true);
-            $('#toLocationLabel').html('Transfer To <span class="text-danger">*</span>');
-            $('#trans_to').prop('required', true);
-            $('#refNumberLabel').text('Out/SIV NO');
-            $('#docNumberLabel').text('Transfer Order No.');
-            break;
-            
-        case 'STORE_RETURN':
-            infoText = 'Store Return - Items returned to store';
-            $('#fromLocationLabel').html('Return From (Site/Project)');
-            $('#toLocationLabel').html('Return To (Store) <span class="text-danger">*</span>');
-            $('#trans_to').prop('required', true);
-            $('#refNumberLabel').text('Return Voucher No.');
-            $('#docNumberLabel').text('Original SIV No.');
-            break;
-            
-        case 'BEGINNING_BALANCE':
-            infoText = 'Beginning Balance - Opening stock for new period';
-            $('#fromLocationDiv').hide();
-            $('#toLocationLabel').html('Stock Location <span class="text-danger">*</span>');
-            $('#trans_to').prop('required', true);
-            $('#refNumberLabel').text('Opening Ref No.');
-            $('#docNumberDiv').hide();
-            break;
-            
-        default:
-            $('#typeInfo').hide();
-            return;
+    if (type === 'GRV' || type === 'BEGINNING_BALANCE') {
+        $('#fromLocationDiv').hide();
+        $('#trans_to').prop('required', true);
+    } else if (type === 'SIV') {
+        $('#toLocationDiv').hide();
+        $('#trans_from').prop('required', true);
+    } else if (type === 'TRANSFER_OUT') {
+        $('#trans_from').prop('required', true);
+        $('#trans_to').prop('required', true);
+    } else if (type === 'ISTRV' || type === 'STORE_RETURN') {
+        $('#trans_to').prop('required', true);
     }
-    
-    $('#typeInfoText').text(infoText);
-    $('#typeInfo').show();
 }
 
-// Reset form
 function resetForm() {
     $('#transactionForm')[0].reset();
     $('#trans_id').val('');
-    $('#trans_date').val('{{ date("Y-m-d") }}');
     $('#trans_item').val(null).trigger('change');
+    $('#trans_from').val(null).trigger('change');
+    $('#trans_to').val(null).trigger('change');
     $('#trans_type').val('');
-    $('#typeInfo').hide();
-    $('#fromLocationDiv').show();
-    $('#toLocationDiv').show();
     $('#modalTitle').html('<i class="fas fa-plus-circle me-2"></i>New Transaction');
-    $('#submitBtn').html('<i class="fas fa-save me-1"></i> Save Transaction');
 }
 
-// View Transaction
 function viewTransaction(id) {
     $.get('/transactions/' + id, function(data) {
         Swal.fire({
@@ -436,22 +311,17 @@ function viewTransaction(id) {
                     <tr><th>Transaction No</th><td>${data.transaction_number}</td></tr>
                     <tr><th>Date</th><td>${data.transaction_date}</td></tr>
                     <tr><th>Type</th><td>${data.transaction_type}</td></tr>
-                    <tr><th>Item</th><td>${data.item?.name || 'N/A'}</td></tr>
-                    <tr><th>Quantity</th><td>${data.quantity} ${data.item?.unit || ''}</td></tr>
+                    <tr><th>Item</th><td>${data.item?.name}</td></tr>
+                    <tr><th>Quantity</th><td>${data.quantity} ${data.item?.unit}</td></tr>
                     <tr><th>From</th><td>${data.from_location?.name || '-'}</td></tr>
                     <tr><th>To</th><td>${data.to_location?.name || '-'}</td></tr>
-                    <tr><th>Reference</th><td>${data.reference_number || '-'}</td></tr>
-                    <tr><th>Document</th><td>${data.document_number || '-'}</td></tr>
-                    <tr><th>Remarks</th><td>${data.remarks || '-'}</td></tr>
                 </table>
             `,
-            icon: 'info',
-            confirmButtonText: 'Close'
+            icon: 'info'
         });
     });
 }
 
-// Edit Transaction
 function editTransaction(id) {
     $.get('/transactions/' + id, function(data) {
         $('#trans_id').val(data.id);
@@ -461,51 +331,41 @@ function editTransaction(id) {
         $('#trans_ref').val(data.reference_number);
         $('#trans_doc').val(data.document_number);
         $('#trans_remarks').val(data.remarks);
-        $('#trans_from').val(data.from_location_id);
-        $('#trans_to').val(data.to_location_id);
         
-        // Set item
         if (data.item) {
             var option = new Option(data.item.code + ' - ' + data.item.name, data.item_id, true, true);
             $('#trans_item').append(option).trigger('change');
         }
+        if (data.from_location) {
+            $('#trans_from').val(data.from_location_id).trigger('change');
+        }
+        if (data.to_location) {
+            $('#trans_to').val(data.to_location_id).trigger('change');
+        }
         
         updateFormFields();
         $('#modalTitle').html('<i class="fas fa-edit me-2"></i>Edit Transaction');
-        $('#submitBtn').html('<i class="fas fa-save me-1"></i> Update');
         $('#transactionModal').modal('show');
     });
 }
 
-// Delete Transaction
 function deleteTransaction(id) {
     Swal.fire({
-        title: 'Delete Transaction?',
-        text: "This action cannot be undone!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        confirmButtonText: 'Yes, delete!'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            $.ajax({
-                url: '/transactions/' + id,
-                type: 'DELETE',
-                success: function(response) {
-                    $('#transactionsTable').DataTable().ajax.reload();
-                    Toast.fire({ icon: 'success', title: response.message });
-                }
+        title: 'Delete?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33'
+    }).then((r) => {
+        if (r.isConfirmed) {
+            $.ajax({ url: '/transactions/' + id, type: 'DELETE',
+                success: function() { $('#transactionsTable').DataTable().ajax.reload(); }
             });
         }
     });
 }
 
-// Reset filters
 function resetFilters() {
     $('#dateFrom').val('');
     $('#dateTo').val('');
     $('#typeFilter').val('');
-    $('#locationFilter').val('');
+    $('#locationFilter').val(null).trigger('change');
     $('#transactionsTable').DataTable().ajax.reload();
 }
 </script>
@@ -518,6 +378,5 @@ function resetFilters() {
     border-radius: 8px !important;
 }
 .select2-dropdown { z-index: 1060 !important; }
-#typeInfo { transition: all 0.3s ease; }
 </style>
 @endsection
