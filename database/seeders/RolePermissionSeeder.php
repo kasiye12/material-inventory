@@ -28,9 +28,41 @@ class RolePermissionSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
-        // Fix GM Role - should have transaction access
+        // ==========================================
+        // ADMIN - Full access
+        // ==========================================
+        $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $adminRole->syncPermissions(Permission::all());
+
+        // ==========================================
+        // GM - VIEW ALL REPORTS ONLY (no master data, no transactions)
+        // ==========================================
         $gmRole = Role::firstOrCreate(['name' => 'gm', 'guard_name' => 'web']);
         $gmRole->syncPermissions([
+            'view all reports',
+        ]);
+
+        // ==========================================
+        // MANAGER - VIEW ALL REPORTS ONLY (no master data, no transactions)
+        // ==========================================
+        $managerRole = Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
+        $managerRole->syncPermissions([
+            'view all reports',
+        ]);
+
+        // ==========================================
+        // CHECKER - VIEW ALL REPORTS ONLY
+        // ==========================================
+        $checkerRole = Role::firstOrCreate(['name' => 'checker', 'guard_name' => 'web']);
+        $checkerRole->syncPermissions([
+            'view all reports',
+        ]);
+
+        // ==========================================
+        // HEAD OFFICE - Master Data + Transactions + Reports
+        // ==========================================
+        $hoRole = Role::firstOrCreate(['name' => 'head_office', 'guard_name' => 'web']);
+        $hoRole->syncPermissions([
             'manage items',
             'manage categories',
             'manage locations',
@@ -39,23 +71,20 @@ class RolePermissionSeeder extends Seeder
             'view all reports',
         ]);
 
-        // Fix Manager Role
-        $managerRole = Role::firstOrCreate(['name' => 'manager', 'guard_name' => 'web']);
-        $managerRole->syncPermissions([
+        // ==========================================
+        // MASTER DATA - Master Data + View Reports
+        // ==========================================
+        $mdRole = Role::firstOrCreate(['name' => 'master_data', 'guard_name' => 'web']);
+        $mdRole->syncPermissions([
             'manage items',
-            'create transactions',
-            'view transactions',
+            'manage categories',
+            'manage locations',
             'view all reports',
         ]);
 
-        // Fix Checker Role - view only
-        $checkerRole = Role::firstOrCreate(['name' => 'checker', 'guard_name' => 'web']);
-        $checkerRole->syncPermissions([
-            'view transactions',
-            'view all reports',
-        ]);
-
-        // Fix Storekeeper Role
+        // ==========================================
+        // STOREKEEPER - Create Transactions (assigned projects) + View Own Reports
+        // ==========================================
         $storekeeperRole = Role::firstOrCreate(['name' => 'storekeeper', 'guard_name' => 'web']);
         $storekeeperRole->syncPermissions([
             'create transactions',
@@ -63,7 +92,9 @@ class RolePermissionSeeder extends Seeder
             'view own reports',
         ]);
 
-        // Fix Site Engineer Role
+        // ==========================================
+        // SITE ENGINEER - Create Transactions (assigned project) + View Own Reports
+        // ==========================================
         $siteEngineerRole = Role::firstOrCreate(['name' => 'site_engineer', 'guard_name' => 'web']);
         $siteEngineerRole->syncPermissions([
             'create transactions',
@@ -71,13 +102,9 @@ class RolePermissionSeeder extends Seeder
             'view own reports',
         ]);
 
-        // Admin has all permissions
-        $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-        $adminRole->syncPermissions(Permission::all());
-
-        echo "✓ Role permissions updated successfully!\n";
-        echo "\nGM now has: create transactions, view transactions\n";
-        echo "Manager now has: create transactions, view transactions\n";
-        echo "Checker now has: view transactions only\n";
+        echo "✓ Role permissions updated!\n";
+        echo "\nGM: VIEW ALL REPORTS ONLY\n";
+        echo "MANAGER: VIEW ALL REPORTS ONLY\n";
+        echo "CHECKER: VIEW ALL REPORTS ONLY\n";
     }
 }

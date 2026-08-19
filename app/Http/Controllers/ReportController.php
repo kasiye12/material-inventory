@@ -17,16 +17,28 @@ class ReportController extends Controller
         $accessibleIds = $user->getAccessibleProjectIds();
         
         if ($user->isHighLevelRole()) {
-            $locations = Location::where('is_active', true)->orderBy('name')->get();
+            $locations = Location::where('is_active', true)->orderBy('code')->get();
         } else {
-            $locations = Location::whereIn('id', $accessibleIds)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get();
+            $locations = Location::whereIn('id', $accessibleIds)->where('is_active', true)->orderBy('code')->get();
         }
         
         $categories = Category::where('is_active', true)->orderBy('name')->get();
         return view('reports.delivery', compact('locations', 'categories', 'request'));
+    }
+
+    public function quarryDelivery(Request $request)
+    {
+        $user = auth()->user();
+        $accessibleIds = $user->getAccessibleProjectIds();
+        
+        if ($user->isHighLevelRole()) {
+            $locations = Location::where('is_active', true)->orderBy('code')->get();
+        } else {
+            $locations = Location::whereIn('id', $accessibleIds)->where('is_active', true)->orderBy('code')->get();
+        }
+        
+        $categories = Category::where('is_active', true)->orderBy('name')->get();
+        return view('reports.quarry-delivery', compact('locations', 'categories', 'request'));
     }
 
     public function stockLedger(Request $request)
@@ -35,12 +47,9 @@ class ReportController extends Controller
         $accessibleIds = $user->getAccessibleProjectIds();
         
         if ($user->isHighLevelRole()) {
-            $locations = Location::where('is_active', true)->orderBy('name')->get();
+            $locations = Location::where('is_active', true)->orderBy('code')->get();
         } else {
-            $locations = Location::whereIn('id', $accessibleIds)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get();
+            $locations = Location::whereIn('id', $accessibleIds)->where('is_active', true)->orderBy('code')->get();
         }
         
         $categories = Category::where('is_active', true)->orderBy('name')->get();
@@ -53,12 +62,9 @@ class ReportController extends Controller
         $accessibleIds = $user->getAccessibleProjectIds();
         
         if ($user->isHighLevelRole()) {
-            $locations = Location::where('is_active', true)->orderBy('name')->get();
+            $locations = Location::where('is_active', true)->orderBy('code')->get();
         } else {
-            $locations = Location::whereIn('id', $accessibleIds)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get();
+            $locations = Location::whereIn('id', $accessibleIds)->where('is_active', true)->orderBy('code')->get();
         }
         
         $categories = Category::where('is_active', true)->orderBy('name')->get();
@@ -77,18 +83,14 @@ class ReportController extends Controller
         
         $items = Item::with('category')
             ->where('is_active', true)
-            ->when($request->category_id, function($q) use ($request) {
-                return $q->where('category_id', $request->category_id);
-            })
+            ->when($request->category_id, fn($q) => $q->where('category_id', $request->category_id))
             ->get()
             ->map(function($item) use ($locationId) {
                 $item->current_stock = $this->calculateLocationStock($item->id, $locationId);
                 return $item;
             });
 
-        return view('reports.stock-balance', compact(
-            'items', 'locations', 'categories', 'request', 'locationId', 'selectedLocation'
-        ));
+        return view('reports.stock-balance', compact('items', 'locations', 'categories', 'request', 'locationId', 'selectedLocation'));
     }
 
     public function weeklyTransfer(Request $request)
@@ -97,12 +99,9 @@ class ReportController extends Controller
         $accessibleIds = $user->getAccessibleProjectIds();
         
         if ($user->isHighLevelRole()) {
-            $locations = Location::where('is_active', true)->orderBy('name')->get();
+            $locations = Location::where('is_active', true)->orderBy('code')->get();
         } else {
-            $locations = Location::whereIn('id', $accessibleIds)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get();
+            $locations = Location::whereIn('id', $accessibleIds)->where('is_active', true)->orderBy('code')->get();
         }
         
         return view('reports.weekly-transfer', compact('locations'));
@@ -116,10 +115,7 @@ class ReportController extends Controller
         if ($user->isHighLevelRole()) {
             $locations = Location::where('is_active', true)->orderBy('code')->get();
         } else {
-            $locations = Location::whereIn('id', $accessibleIds)
-                ->where('is_active', true)
-                ->orderBy('code')
-                ->get();
+            $locations = Location::whereIn('id', $accessibleIds)->where('is_active', true)->orderBy('code')->get();
         }
         
         return view('reports.weekly-stock-status', compact('locations'));
@@ -131,12 +127,9 @@ class ReportController extends Controller
         $accessibleIds = $user->getAccessibleProjectIds();
         
         if ($user->isHighLevelRole()) {
-            $locations = Location::where('is_active', true)->orderBy('name')->get();
+            $locations = Location::where('is_active', true)->orderBy('code')->get();
         } else {
-            $locations = Location::whereIn('id', $accessibleIds)
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get();
+            $locations = Location::whereIn('id', $accessibleIds)->where('is_active', true)->orderBy('code')->get();
         }
         
         $categories = Category::where('is_active', true)->orderBy('name')->get();
@@ -148,7 +141,8 @@ class ReportController extends Controller
             'total_grv' => StockTransaction::where('transaction_type', 'GRV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('to_location_id', $accessibleIds))->sum('quantity'),
             'total_siv' => StockTransaction::where('transaction_type', 'SIV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('from_location_id', $accessibleIds))->sum('quantity'),
             'total_transfer' => StockTransaction::where('transaction_type', 'TRANSFER_OUT')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('from_location_id', $accessibleIds))->sum('quantity'),
-            'total_return' => StockTransaction::where('transaction_type', 'STORE_RETURN')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('to_location_id', $accessibleIds))->sum('quantity'),
+            'total_return' => StockTransaction::whereIn('transaction_type', ['STORE_RETURN', 'SRV'])->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('to_location_id', $accessibleIds))->sum('quantity'),
+            'total_fuel' => StockTransaction::whereIn('transaction_type', ['FRV', 'FIV'])->whereBetween('transaction_date', [$dateFrom, $dateTo])->sum('quantity'),
             'total_transactions' => StockTransaction::whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), function($q) use ($accessibleIds) { return $q->where(function($sub) use ($accessibleIds) { $sub->whereIn('from_location_id', $accessibleIds)->orWhereIn('to_location_id', $accessibleIds); }); })->count(),
         ];
         
@@ -161,9 +155,9 @@ class ReportController extends Controller
         $accessibleIds = $user->getAccessibleProjectIds();
         
         if ($user->isHighLevelRole()) {
-            $locations = Location::where('is_active', true)->orderBy('name')->get();
+            $locations = Location::where('is_active', true)->orderBy('code')->get();
         } else {
-            $locations = Location::whereIn('id', $accessibleIds)->where('is_active', true)->orderBy('name')->get();
+            $locations = Location::whereIn('id', $accessibleIds)->where('is_active', true)->orderBy('code')->get();
         }
         
         $categories = Category::where('is_active', true)->orderBy('name')->get();
@@ -175,9 +169,9 @@ class ReportController extends Controller
             'total_grv' => StockTransaction::where('transaction_type', 'GRV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('to_location_id', $accessibleIds))->sum('quantity'),
             'total_siv' => StockTransaction::where('transaction_type', 'SIV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('from_location_id', $accessibleIds))->sum('quantity'),
             'total_transfer' => StockTransaction::where('transaction_type', 'TRANSFER_OUT')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('from_location_id', $accessibleIds))->sum('quantity'),
-            'total_return' => StockTransaction::where('transaction_type', 'STORE_RETURN')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('to_location_id', $accessibleIds))->sum('quantity'),
-            'total_istrv' => StockTransaction::where('transaction_type', 'ISTRV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('to_location_id', $accessibleIds))->sum('quantity'),
-            'total_transactions' => StockTransaction::whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), function($q) use ($accessibleIds) { return $q->where(function($sub) use ($accessibleIds) { $sub->whereIn('from_location_id', $accessibleIds)->orWhereIn('to_location_id', $accessibleIds); }); })->count(),
+            'total_return' => StockTransaction::whereIn('transaction_type', ['STORE_RETURN', 'SRV'])->whereBetween('transaction_date', [$dateFrom, $dateTo])->sum('quantity'),
+            'total_istrv' => StockTransaction::where('transaction_type', 'ISTRV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->sum('quantity'),
+            'total_transactions' => StockTransaction::whereBetween('transaction_date', [$dateFrom, $dateTo])->count(),
         ];
         
         return view('reports.monthly-report', compact('locations', 'categories', 'dateFrom', 'dateTo', 'monthName', 'summary'));
@@ -185,14 +179,17 @@ class ReportController extends Controller
 
     private function calculateLocationStock($itemId, $locationId)
     {
+        $inTypes = ['GRV', 'ISTRV', 'STORE_RETURN', 'BEGINNING_BALANCE', 'SRV', 'TTRV', 'FARV', 'UMTRV', 'FGRV', 'FRV'];
+        $outTypes = ['SIV', 'TRANSFER_OUT', 'FIV', 'UMIV', 'UMTV'];
+        
         $received = StockTransaction::where('item_id', $itemId)
             ->where('to_location_id', $locationId)
-            ->whereIn('transaction_type', ['GRV', 'ISTRV', 'STORE_RETURN', 'BEGINNING_BALANCE'])
+            ->whereIn('transaction_type', $inTypes)
             ->sum('quantity');
         
         $issued = StockTransaction::where('item_id', $itemId)
             ->where('from_location_id', $locationId)
-            ->whereIn('transaction_type', ['SIV', 'TRANSFER_OUT'])
+            ->whereIn('transaction_type', $outTypes)
             ->sum('quantity');
         
         return max(0, round($received - $issued, 2));

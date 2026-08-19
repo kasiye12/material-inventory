@@ -19,19 +19,36 @@ class StockTransactionController extends Controller
             $locations = Location::where('is_active', true)->orderBy('code')->get();
         } else {
             $accessibleIds = $user->getAccessibleProjectIds();
-            $locations = Location::whereIn('id', $accessibleIds)
-                ->where('is_active', true)
-                ->orderBy('code')
-                ->get();
+            $locations = Location::whereIn('id', $accessibleIds)->where('is_active', true)->orderBy('code')->get();
         }
         
         $transactionTypes = [
-            'GRV' => 'GRV - Goods Received Voucher',
-            'ISTRV' => 'ISTRV - Inter Store Transfer Received',
-            'SIV' => 'SIV - Store Issue Voucher',
-            'TRANSFER_OUT' => 'Transfer Out',
-            'STORE_RETURN' => 'Store Return',
-            'BEGINNING_BALANCE' => 'Beginning Balance'
+            // Regular Materials
+            'GRV' => '📥 GRV - Goods Received Voucher',
+            'ISTRV' => '📥 ISTRV - Inter Store Transfer Receiving',
+            
+            // Fixed Assets
+            'FARV' => '🏗️ FARV - Fixed Asset Receiving (ISFATV/ISFATRV)',
+            
+            // Used Materials
+            'UMTRV' => '♻️ UMTRV - Used Material Transfer Receiving (UMTR/UMTRV)',
+            
+            // Other Receiving
+            'SRV' => '🔄 SRV - Store Return Voucher',
+            'TTRV' => '📥 TTRV - Temporary Transfer Receiving',
+            'FGRV' => '🏭 FGRV - Finished Good Receiving',
+            'FRV' => '⛽ FRV - Fuel Receiving Voucher',
+            'BEGINNING_BALANCE' => '📊 BEGINNING_BALANCE - Opening Stock',
+            
+            // Issue/Transfer Out
+            'SIV' => '📤 SIV - Store Issue Voucher',
+            'TRANSFER_OUT' => '📤 TRANSFER_OUT - Transfer Out',
+            'FIV' => '⛽ FIV - Fuel Issue Voucher',
+            'UMIV' => '♻️ UMIV - Used Material Issue Voucher',
+            'UMTV' => '♻️ UMTV - Used Material Transfer Voucher',
+            
+            // Return
+            'STORE_RETURN' => '🔄 STORE_RETURN - Store Return',
         ];
 
         return view('transactions.index', compact('locations', 'transactionTypes'));
@@ -72,8 +89,24 @@ class StockTransactionController extends Controller
             ->addColumn('from_location', fn($t) => $t->fromLocation->name ?? '-')
             ->addColumn('to_location', fn($t) => $t->toLocation->name ?? '-')
             ->addColumn('type_badge', function($t) {
-                $badges = ['GRV'=>'success','ISTRV'=>'info','SIV'=>'warning','TRANSFER_OUT'=>'danger','STORE_RETURN'=>'primary','BEGINNING_BALANCE'=>'secondary'];
-                return '<span class="badge bg-'.($badges[$t->transaction_type] ?? 'secondary').'">'.$t->transaction_type.'</span>';
+                $badges = [
+                    'GRV' => 'success', 'ISTRV' => 'info', 'SIV' => 'warning',
+                    'TRANSFER_OUT' => 'danger', 'STORE_RETURN' => 'primary',
+                    'BEGINNING_BALANCE' => 'secondary',
+                    'SRV' => 'primary', 'FIV' => 'warning', 'UMIV' => 'secondary',
+                    'TTRV' => 'info', 'FARV' => 'dark', 'UMTV' => 'secondary',
+                    'UMTRV' => 'info', 'FGRV' => 'success', 'FRV' => 'warning',
+                ];
+                $badge = $badges[$t->transaction_type] ?? 'secondary';
+                return '<span class="badge bg-' . $badge . '">' . $t->transaction_type . '</span>';
+            })
+            ->addColumn('voucher_out', function($t) {
+                // Transfer Out / Issue voucher number
+                return $t->reference_number ?? '-';
+            })
+            ->addColumn('voucher_in', function($t) {
+                // Receiving voucher number
+                return $t->document_number ?? '-';
             })
             ->rawColumns(['type_badge'])
             ->make(true);
@@ -85,14 +118,20 @@ class StockTransactionController extends Controller
         
         $request->validate([
             'transaction_date' => 'required|date',
-            'transaction_type' => 'required|in:GRV,ISTRV,SIV,TRANSFER_OUT,STORE_RETURN,BEGINNING_BALANCE',
+            'transaction_type' => 'required|in:GRV,ISTRV,SIV,TRANSFER_OUT,STORE_RETURN,BEGINNING_BALANCE,SRV,FIV,UMIV,TTRV,FARV,UMTV,UMTRV,FGRV,FRV',
             'item_id' => 'required|exists:items,id',
             'quantity' => 'required|numeric|min:0.01',
         ]);
 
         $item = Item::find($request->item_id);
+        $type = $request->transaction_type;
 
-        if (in_array($request->transaction_type, ['SIV', 'TRANSFER_OUT'])) {
+        // IN types
+        $inTypes = ['GRV', 'ISTRV', 'STORE_RETURN', 'BEGINNING_BALANCE', 'SRV', 'TTRV', 'FARV', 'UMTRV', 'FGRV', 'FRV'];
+        // OUT types
+        $outTypes = ['SIV', 'TRANSFER_OUT', 'FIV', 'UMIV', 'UMTV'];
+
+        if (in_array($type, $outTypes)) {
             if (!$request->from_location_id) {
                 return response()->json(['success' => false, 'message' => 'From Location is required'], 422);
             }
@@ -102,7 +141,7 @@ class StockTransactionController extends Controller
             }
         }
 
-        if (in_array($request->transaction_type, ['GRV', 'ISTRV', 'STORE_RETURN', 'BEGINNING_BALANCE'])) {
+        if (in_array($type, $inTypes)) {
             if (!$request->to_location_id) {
                 return response()->json(['success' => false, 'message' => 'To Location is required'], 422);
             }
@@ -110,7 +149,7 @@ class StockTransactionController extends Controller
 
         $transaction = StockTransaction::create([
             'transaction_date' => $request->transaction_date,
-            'transaction_type' => $request->transaction_type,
+            'transaction_type' => $type,
             'item_id' => $request->item_id,
             'from_location_id' => $request->from_location_id,
             'to_location_id' => $request->to_location_id,
@@ -121,45 +160,28 @@ class StockTransactionController extends Controller
             'created_by' => $user->id,
         ]);
 
-        $fromLocation = $request->from_location_id ? Location::find($request->from_location_id)?->name : null;
-        $toLocation = $request->to_location_id ? Location::find($request->to_location_id)?->name : null;
-
-        ActivityLogger::log(
-            'CREATE',
-            "Transaction {$request->transaction_type} created: {$item->name} ({$request->quantity} {$item->unit})",
-            'TRANSACTION', $transaction->id, $transaction->transaction_number,
-            'Transactions',
-            null, $transaction->toArray(),
-            $request->to_location_id ?? $request->from_location_id,
-            $toLocation ?? $fromLocation
-        );
+        ActivityLogger::log('CREATE', "Transaction {$type} created: {$item->name}", 'TRANSACTION', $transaction->id, $transaction->transaction_number, 'Transactions');
 
         return response()->json(['success' => true, 'message' => 'Transaction created successfully!']);
     }
 
     public function show($id)
     {
-        $transaction = StockTransaction::with(['item', 'fromLocation', 'toLocation', 'creator'])->findOrFail($id);
-        
-        ActivityLogger::log(
-            'VIEW',
-            'Transaction viewed: ' . $transaction->transaction_number,
-            'TRANSACTION', $transaction->id, $transaction->transaction_number,
-            'Transactions'
+        return response()->json(
+            StockTransaction::with(['item', 'fromLocation', 'toLocation', 'creator'])->findOrFail($id)
         );
-        
-        return response()->json($transaction);
     }
 
     public function edit($id)
     {
-        return response()->json(StockTransaction::with(['item', 'fromLocation', 'toLocation'])->findOrFail($id));
+        return response()->json(
+            StockTransaction::with(['item', 'fromLocation', 'toLocation'])->findOrFail($id)
+        );
     }
 
     public function update(Request $request, $id)
     {
         $transaction = StockTransaction::findOrFail($id);
-        $oldValues = $transaction->toArray();
         
         $transaction->update([
             'transaction_date' => $request->transaction_date,
@@ -174,30 +196,12 @@ class StockTransactionController extends Controller
             'updated_by' => auth()->id(),
         ]);
 
-        ActivityLogger::log(
-            'UPDATE',
-            'Transaction updated: ' . $transaction->transaction_number,
-            'TRANSACTION', $transaction->id, $transaction->transaction_number,
-            'Transactions',
-            $oldValues, $transaction->toArray()
-        );
-
         return response()->json(['success' => true, 'message' => 'Transaction updated successfully!']);
     }
 
     public function destroy($id)
     {
-        $transaction = StockTransaction::findOrFail($id);
-        
-        ActivityLogger::log(
-            'DELETE',
-            'Transaction deleted: ' . $transaction->transaction_number,
-            'TRANSACTION', $transaction->id, $transaction->transaction_number,
-            'Transactions',
-            $transaction->toArray(), null
-        );
-        
-        $transaction->delete();
+        StockTransaction::findOrFail($id)->delete();
         return response()->json(['success' => true, 'message' => 'Transaction deleted successfully!']);
     }
 

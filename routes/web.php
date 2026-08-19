@@ -24,13 +24,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index']);
     Route::get('/profile', function () { return view('profile'); })->name('profile');
-    Route::get('/test-amharic', function () {
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('test-amharic');
-        return $pdf->download('amharic-test.pdf');
-    });
     Route::get('/help', function () { return view('help'); })->name('help');
     
-    // Items with price update route
+    // Items
     Route::get('/items/data', [ItemController::class, 'getData'])->name('items.data');
     Route::get('/items/search', [ItemController::class, 'search'])->name('items.search');
     Route::post('/items/{id}/update-price', [ItemController::class, 'updatePrice'])->name('items.update-price');
@@ -52,6 +48,7 @@ Route::middleware(['auth'])->group(function () {
     // Reports
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/delivery', [ReportController::class, 'delivery'])->name('delivery');
+        Route::get('/quarry-delivery', [ReportController::class, 'quarryDelivery'])->name('quarry-delivery');
         Route::get('/stock-ledger', [ReportController::class, 'stockLedger'])->name('stock-ledger');
         Route::get('/stock-balance', [ReportController::class, 'stockBalance'])->name('stock-balance');
         Route::get('/weekly-transfer', [ReportController::class, 'weeklyTransfer'])->name('weekly-transfer');
@@ -59,7 +56,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/weekly-report', [ReportController::class, 'weeklyReport'])->name('weekly-report');
         Route::get('/monthly-report', [ReportController::class, 'monthlyReport'])->name('monthly-report');
         
+        // Export routes
         Route::get('/delivery/export', [ReportExportController::class, 'exportDeliveryReport'])->name('delivery.export');
+        Route::get('/quarry-delivery/export', [ReportExportController::class, 'exportQuarryDelivery'])->name('quarry-delivery.export');
         Route::get('/ledger/export', [ReportExportController::class, 'exportProjectLedger'])->name('ledger.export');
         Route::get('/weekly-transfer/export', [ReportExportController::class, 'exportWeeklyTransfer'])->name('weekly-transfer.export');
         Route::get('/weekly-stock-status/export', [ReportExportController::class, 'exportWeeklyStockStatus'])->name('weekly-stock-status.export');

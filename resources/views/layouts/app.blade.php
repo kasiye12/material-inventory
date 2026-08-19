@@ -32,6 +32,10 @@
         .user-info { background: rgba(255,255,255,0.05); padding: 10px 15px; margin: 10px; border-radius: 8px; font-size: 11px; }
         .user-info .role-badge { color: #fbbf24; font-weight: bold; }
         @media (max-width: 768px) { .sidebar { width: 0; } .main-content { margin-left: 0; } }
+        @media print {
+            .sidebar, #sidebar, .dropdown, .d-flex.justify-content-between.align-items-center.mb-4, .breadcrumb { display: none !important; }
+            .main-content { margin-left: 0 !important; padding: 0 !important; width: 100% !important; }
+        }
     </style>
 </head>
 <body>
@@ -51,12 +55,12 @@
         </div>
         
         <nav class="nav-menu">
-            <!-- Dashboard -->
+            <!-- Dashboard - All users -->
             <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                 <i class="fas fa-th-large"></i> Dashboard
             </a>
             
-            <!-- Master Data -->
+            <!-- Master Data - Only Admin, Head Office, Master Data -->
             @if(auth()->user()->can('manage items') || auth()->user()->can('manage categories') || auth()->user()->can('manage locations'))
             <div class="nav-section">Master Data</div>
             @if(auth()->user()->can('manage items'))
@@ -76,19 +80,22 @@
             @endif
             @endif
             
-            <!-- Transactions -->
-            @if(auth()->user()->can('view transactions') || auth()->user()->can('create transactions') || auth()->user()->can('view own transactions'))
+            <!-- Transactions - Only Admin, Head Office, Storekeeper, Site Engineer -->
+            @if(auth()->user()->can('create transactions') || auth()->user()->can('view transactions') || auth()->user()->can('view own transactions'))
             <div class="nav-section">Transactions</div>
             <a href="{{ route('transactions.index') }}" class="nav-link {{ request()->routeIs('transactions.*') ? 'active' : '' }}">
                 <i class="fas fa-exchange-alt"></i> Transactions
             </a>
             @endif
             
-            <!-- Reports -->
-            @if(auth()->user()->can('view all reports') || auth()->user()->can('view own reports') || auth()->user()->hasRole('checker'))
+            <!-- Reports - All users with any report permission -->
+            @if(auth()->user()->can('view all reports') || auth()->user()->can('view own reports'))
             <div class="nav-section">Reports</div>
             <a href="{{ route('reports.delivery') }}" class="nav-link {{ request()->routeIs('reports.delivery') ? 'active' : '' }}">
                 <i class="fas fa-truck"></i> Delivery Report
+            </a>
+            <a href="{{ route('reports.quarry-delivery') }}" class="nav-link {{ request()->routeIs('reports.quarry-delivery') ? 'active' : '' }}">
+                <i class="fas fa-mountain"></i> Quarry Delivery
             </a>
             <a href="{{ route('reports.stock-ledger') }}" class="nav-link {{ request()->routeIs('reports.stock-ledger') ? 'active' : '' }}">
                 <i class="fas fa-book"></i> Stock Ledger
@@ -110,7 +117,7 @@
             </a>
             @endif
             
-            <!-- Administration -->
+            <!-- Administration - Only Admin -->
             @if(auth()->user()->can('manage users') || auth()->user()->hasRole('admin'))
             <div class="nav-section">Administration</div>
             <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">

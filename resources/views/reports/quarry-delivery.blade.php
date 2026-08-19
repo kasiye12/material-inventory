@@ -1,6 +1,6 @@
 @extends('layouts.app')
-@section('title', 'Delivery Report')
-@section('page-title', 'Material Delivery Report')
+@section('title', 'Quarry Delivery Report')
+@section('page-title', 'Daily Quarry Materials Delivery Report')
 
 @section('content')
 <!-- Filter Form -->
@@ -9,7 +9,7 @@
         <h6 class="mb-0"><i class="fas fa-filter me-2"></i>Report Filters</h6>
     </div>
     <div class="card-body">
-        <form method="GET" action="{{ route('reports.delivery') }}" class="row align-items-end">
+        <form method="GET" action="{{ route('reports.quarry-delivery') }}" class="row align-items-end">
             <div class="col-md-2 mb-2">
                 <label class="form-label small fw-bold">From Date</label>
                 <input type="date" class="form-control" name="date_from" value="{{ request('date_from', date('Y-m-d')) }}">
@@ -18,21 +18,10 @@
                 <label class="form-label small fw-bold">To Date</label>
                 <input type="date" class="form-control" name="date_to" value="{{ request('date_to', date('Y-m-d')) }}">
             </div>
-            <div class="col-md-2 mb-2">
-                <label class="form-label small fw-bold">From (Source)</label>
-                <select class="form-select select2-search" name="from_location_id" style="width: 100%;">
-                    <option value="">🔍 All Sources</option>
-                    @foreach($locations as $loc)
-                    <option value="{{ $loc->id }}" {{ request('from_location_id') == $loc->id ? 'selected' : '' }}>
-                        {{ $loc->code }} - {{ $loc->name }}
-                    </option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-2 mb-2">
-                <label class="form-label small fw-bold">To (Destination)</label>
+            <div class="col-md-3 mb-2">
+                <label class="form-label small fw-bold">Project/Location</label>
                 <select class="form-select select2-search" name="location_id" style="width: 100%;">
-                    <option value="">🔍 All Destinations</option>
+                    <option value="">🔍 Search project...</option>
                     @foreach($locations as $loc)
                     <option value="{{ $loc->id }}" {{ request('location_id') == $loc->id ? 'selected' : '' }}>
                         {{ $loc->code }} - {{ $loc->name }}
@@ -40,13 +29,13 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-2 mb-2">
+            <div class="col-md-3 mb-2">
                 <label class="form-label small fw-bold">Report Section</label>
                 <select class="form-select" name="section">
                     <option value="">All Sections</option>
-                    <option value="regular" {{ request('section') == 'regular' ? 'selected' : '' }}>Regular Materials</option>
-                    <option value="fixed" {{ request('section') == 'fixed' ? 'selected' : '' }}>Fixed Assets</option>
-                    <option value="used" {{ request('section') == 'used' ? 'selected' : '' }}>Used Materials</option>
+                    <option value="purchase" {{ request('section') == 'purchase' ? 'selected' : '' }}>Items Purchased (GRV)</option>
+                    <option value="quarry_transfer" {{ request('section') == 'quarry_transfer' ? 'selected' : '' }}>Quarry Transfer (MDV)</option>
+                    <option value="transfer_out" {{ request('section') == 'transfer_out' ? 'selected' : '' }}>Transfer To Projects (ISTV)</option>
                 </select>
             </div>
             <div class="col-md-2 mb-2">
@@ -59,7 +48,7 @@
 </div>
 
 @php
-    $hasFilters = request('date_from') || request('location_id') || request('from_location_id') || request('section');
+    $hasFilters = request('date_from') || request('location_id') || request('section');
     $dateFrom = request('date_from', date('Y-m-d'));
     $dateTo = request('date_to', date('Y-m-d'));
     $section = request('section');
@@ -68,18 +57,23 @@
     $accessibleIds = $user->getAccessibleProjectIds();
     $locationName = request('location_id') ? App\Models\Location::find(request('location_id'))->name : 'All Locations';
     
-    $baseQuery = App\Models\StockTransaction::with(['item.category', 'fromLocation', 'toLocation'])
+    $query = App\Models\StockTransaction::with(['item', 'fromLocation', 'toLocation'])
         ->whereBetween('transaction_date', [$dateFrom, $dateTo]);
     
     if (!$user->isHighLevelRole()) {
-        $baseQuery->whereIn('to_location_id', $accessibleIds);
-    }
-    if (request('from_location_id')) {
-        $baseQuery->where('from_location_id', request('from_location_id'));
+        $query->where(function($q) use ($accessibleIds) {
+            $q->whereIn('from_location_id', $accessibleIds)
+              ->orWhereIn('to_location_id', $accessibleIds);
+        });
     }
     if (request('location_id')) {
-        $baseQuery->where('to_location_id', request('location_id'));
+        $query->where(function($q) {
+            $q->where('from_location_id', request('location_id'))
+              ->orWhere('to_location_id', request('location_id'));
+        });
     }
+    
+    $allTransactions = $query->orderBy('transaction_date', 'asc')->get();
 @endphp
 
 @if($hasFilters || request('date_from'))
@@ -87,10 +81,10 @@
         <button class="btn btn-primary btn-sm" onclick="window.print()">
             <i class="fas fa-print me-1"></i> Print
         </button>
-        <a href="{{ route('reports.delivery.export', ['date_from' => $dateFrom, 'date_to' => $dateTo, 'from_location_id' => request('from_location_id'), 'location_id' => request('location_id'), 'section' => $section, 'format' => 'pdf']) }}" class="btn btn-danger btn-sm">
+        <a href="{{ route('reports.quarry-delivery.export', ['date_from' => $dateFrom, 'date_to' => $dateTo, 'location_id' => request('location_id'), 'section' => $section, 'format' => 'pdf']) }}" class="btn btn-danger btn-sm">
             <i class="fas fa-file-pdf me-1"></i> PDF
         </a>
-        <a href="{{ route('reports.delivery.export', ['date_from' => $dateFrom, 'date_to' => $dateTo, 'from_location_id' => request('from_location_id'), 'location_id' => request('location_id'), 'section' => $section, 'format' => 'excel']) }}" class="btn btn-success btn-sm">
+        <a href="{{ route('reports.quarry-delivery.export', ['date_from' => $dateFrom, 'date_to' => $dateTo, 'location_id' => request('location_id'), 'section' => $section, 'format' => 'excel']) }}" class="btn btn-success btn-sm">
             <i class="fas fa-file-excel me-1"></i> Excel
         </a>
     </div>
@@ -108,50 +102,41 @@
                         <p style="font-style: italic; margin: 0;">TNT Construction & Trading</p>
                     </div>
                     <div style="position: absolute; right: 0; font-size: 10px; text-align: right;">
-                        <strong>Document No:</strong> OF/TNT/SUP/033<br>
+                        <strong>Document No:</strong> OF/TNT/SUP/037<br>
                         <strong>Issue No:</strong> 1<br>
                         <strong>Page No:</strong> Page 1 of 1
                     </div>
                 </div>
                 
                 <div style="text-align: center; margin-bottom: 10px;">
-                    <strong>Daily Material Delivery Report</strong>
+                    <strong>Daily Quarry Materials Delivery Report</strong>
                 </div>
                 
-                {{-- ==================== SECTION 1: REGULAR MATERIALS ==================== --}}
-                @if(!$section || $section == 'regular')
-                @php
-                    $regularItems = (clone $baseQuery)->whereIn('transaction_type', ['GRV', 'ISTRV'])
-                        ->orderBy('transaction_date', 'asc')->get();
-                    $groupedRegular = $regularItems->groupBy(fn($d) => $d->item->category->name ?? 'Uncategorized');
-                @endphp
-                
+                {{-- SECTION 1: Items Purchased (GRV) --}}
+                @php $purchasedItems = $allTransactions->where('transaction_type', 'GRV'); @endphp
+                @if((!$section || $section == 'purchase') && $purchasedItems->count() > 0)
                 <p style="text-align: center; text-decoration: underline; font-weight: bold; margin-bottom: 5px;">
-                    List of Items Purchased through Head Office, Transfer from project & Main Store to {{ $locationName }}
+                    List of Items Purchased Through Head Office to {{ $locationName }}
                 </p>
-                
                 <div class="table-responsive">
-                    <table class="table table-bordered" style="font-size: 10px;">
+                    <table class="table table-bordered" style="font-size: 9px;">
                         <thead>
                             <tr style="background: #4b5563; color: #fff;">
-                                <th style="text-align: center;">NO</th>
+                                <th style="text-align: center;">No</th>
                                 <th>Item Description</th>
                                 <th style="text-align: center;">Unit</th>
                                 <th style="text-align: center;">Qty</th>
                                 <th style="text-align: center;">ISTV NO</th>
                                 <th style="text-align: center;">ISTRV NO</th>
                                 <th style="text-align: center;">Delivery Date</th>
-                                <th style="text-align: center;">FROM</th>
-                                <th>Remark</th>
+                                <th style="text-align: center;">From</th>
+                                <th style="text-align: center;">Plate No</th>
+                                <th>Supplier</th>
                             </tr>
                         </thead>
                         <tbody>
                             @php $counter = 1; @endphp
-                            @forelse($groupedRegular as $category => $items)
-                            <tr style="background: #e5e7eb;">
-                                <td colspan="9"><strong>{{ $category }}</strong></td>
-                            </tr>
-                            @foreach($items as $d)
+                            @foreach($purchasedItems as $d)
                             <tr>
                                 <td style="text-align: center;">{{ $counter++ }}</td>
                                 <td>{{ $d->item->name }}</td>
@@ -161,110 +146,101 @@
                                 <td style="text-align: center;">{{ $d->document_number ?? '' }}</td>
                                 <td style="text-align: center;">{{ $d->transaction_date->format('d/m/Y') }}</td>
                                 <td style="text-align: center;">{{ $d->fromLocation->name ?? 'Head Office' }}</td>
-                                <td>{{ $d->remarks ?? '' }}</td>
+                                <td style="text-align: center;">{{ $d->remarks ?? '' }}</td>
+                                <td>{{ $d->document_number ?? '' }}</td>
                             </tr>
                             @endforeach
-                            @empty
-                            <tr><td colspan="9" style="text-align: center; padding: 15px; color: #999;">No regular materials found</td></tr>
-                            @endforelse
                         </tbody>
                     </table>
                 </div>
                 @endif
                 
-                {{-- ==================== SECTION 2: FIXED ASSETS ==================== --}}
-                @if(!$section || $section == 'fixed')
-                @php
-                    $fixedItems = (clone $baseQuery)->where('transaction_type', 'FARV')
-                        ->orderBy('transaction_date', 'asc')->get();
-                @endphp
-                
+                {{-- SECTION 2: Quarry Transfer (TRANSFER_OUT - MDV) --}}
+                @php $quarryTransfer = $allTransactions->where('transaction_type', 'TRANSFER_OUT'); @endphp
+                @if((!$section || $section == 'quarry_transfer') && $quarryTransfer->count() > 0)
                 <p style="text-align: center; text-decoration: underline; font-weight: bold; margin: 20px 0 5px;">
-                    List of Fixed Items Purchased Through Head Office, Transfer From Project & Main Store to {{ $locationName }}
+                    List of Quarry Transfer From {{ $locationName }} To Projects
                 </p>
-                
                 <div class="table-responsive">
-                    <table class="table table-bordered" style="font-size: 10px;">
+                    <table class="table table-bordered" style="font-size: 9px;">
                         <thead>
                             <tr style="background: #4b5563; color: #fff;">
                                 <th style="text-align: center;">No</th>
                                 <th>Item Description</th>
                                 <th style="text-align: center;">Unit</th>
                                 <th style="text-align: center;">Qty</th>
-                                <th style="text-align: center;">ISFATV NO</th>
-                                <th style="text-align: center;">ISFATRV NO</th>
+                                <th style="text-align: center;">MDV</th>
                                 <th style="text-align: center;">Delivery Date</th>
-                                <th style="text-align: center;">From</th>
+                                <th style="text-align: center;">Plate No</th>
+                                <th style="text-align: center;">To</th>
                                 <th>Remark</th>
                             </tr>
                         </thead>
                         <tbody>
                             @php $counter = 1; @endphp
-                            @forelse($fixedItems as $d)
+                            @foreach($quarryTransfer as $d)
                             <tr>
                                 <td style="text-align: center;">{{ $counter++ }}</td>
                                 <td>{{ $d->item->name }}</td>
                                 <td style="text-align: center;">{{ $d->item->unit }}</td>
                                 <td style="text-align: center;">{{ $d->quantity }}</td>
                                 <td style="text-align: center;">{{ $d->reference_number ?? '' }}</td>
-                                <td style="text-align: center;">{{ $d->document_number ?? '' }}</td>
                                 <td style="text-align: center;">{{ $d->transaction_date->format('d/m/Y') }}</td>
-                                <td style="text-align: center;">{{ $d->fromLocation->name ?? 'Head Office' }}</td>
-                                <td>{{ $d->remarks ?? '' }}</td>
+                                <td style="text-align: center;">{{ $d->remarks ?? '' }}</td>
+                                <td style="text-align: center;">{{ $d->toLocation->name ?? '' }}</td>
+                                <td>{{ $d->document_number ?? '' }}</td>
                             </tr>
-                            @empty
-                            <tr><td colspan="9" style="text-align: center; padding: 15px; color: #999;">No fixed assets found</td></tr>
-                            @endforelse
+                            @endforeach
                         </tbody>
                     </table>
                 </div>
                 @endif
                 
-                {{-- ==================== SECTION 3: USED MATERIALS ==================== --}}
-                @if(!$section || $section == 'used')
-                @php
-                    $usedItems = (clone $baseQuery)->where('transaction_type', 'UMTRV')
-                        ->orderBy('transaction_date', 'asc')->get();
-                @endphp
-                
+                {{-- SECTION 3: Transfer To Projects (SIV - ISTV) --}}
+                @php $transferOut = $allTransactions->where('transaction_type', 'SIV'); @endphp
+                @if((!$section || $section == 'transfer_out') && $transferOut->count() > 0)
                 <p style="text-align: center; text-decoration: underline; font-weight: bold; margin: 20px 0 5px;">
-                    List of Used Items Purchased through Head Office, Transfer From Project & Main Store to {{ $locationName }}
+                    List of Items Transferred From {{ $locationName }} To Projects
                 </p>
-                
                 <div class="table-responsive">
-                    <table class="table table-bordered" style="font-size: 10px;">
+                    <table class="table table-bordered" style="font-size: 9px;">
                         <thead>
                             <tr style="background: #4b5563; color: #fff;">
                                 <th style="text-align: center;">No</th>
                                 <th>Item Description</th>
                                 <th style="text-align: center;">Unit</th>
                                 <th style="text-align: center;">Qty</th>
-                                <th style="text-align: center;">UMTR NO</th>
-                                <th style="text-align: center;">UMTRV No</th>
+                                <th style="text-align: center;">ISTV NO</th>
                                 <th style="text-align: center;">Delivery Date</th>
-                                <th style="text-align: center;">FROM</th>
+                                <th style="text-align: center;">Plate No</th>
+                                <th style="text-align: center;">To</th>
                                 <th>Remark</th>
                             </tr>
                         </thead>
                         <tbody>
                             @php $counter = 1; @endphp
-                            @forelse($usedItems as $d)
+                            @foreach($transferOut as $d)
                             <tr>
                                 <td style="text-align: center;">{{ $counter++ }}</td>
                                 <td>{{ $d->item->name }}</td>
                                 <td style="text-align: center;">{{ $d->item->unit }}</td>
                                 <td style="text-align: center;">{{ $d->quantity }}</td>
                                 <td style="text-align: center;">{{ $d->reference_number ?? '' }}</td>
-                                <td style="text-align: center;">{{ $d->document_number ?? '' }}</td>
                                 <td style="text-align: center;">{{ $d->transaction_date->format('d/m/Y') }}</td>
-                                <td style="text-align: center;">{{ $d->fromLocation->name ?? 'Head Office' }}</td>
-                                <td>{{ $d->remarks ?? '' }}</td>
+                                <td style="text-align: center;">{{ $d->remarks ?? '' }}</td>
+                                <td style="text-align: center;">{{ $d->toLocation->name ?? '' }}</td>
+                                <td>{{ $d->document_number ?? '' }}</td>
                             </tr>
-                            @empty
-                            <tr><td colspan="9" style="text-align: center; padding: 15px; color: #999;">No used materials found</td></tr>
-                            @endforelse
+                            @endforeach
                         </tbody>
                     </table>
+                </div>
+                @endif
+                
+                @if($allTransactions->count() == 0)
+                <div style="text-align: center; padding: 30px; color: #999;">
+                    <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                    No quarry delivery records found
                 </div>
                 @endif
             </div>
@@ -273,13 +249,13 @@
 @else
     <div class="alert alert-info no-print">
         <i class="fas fa-info-circle me-2"></i>
-        <strong>Select filters and click "Generate" to view the report.</strong>
+        <strong>Select filters and click "Generate" to view the Quarry Delivery Report.</strong>
         <br><br>
         <strong>Report Sections:</strong>
         <ul class="mb-0">
-            <li>📦 Regular Materials (ISTV NO + ISTRV NO)</li>
-            <li>🏗️ Fixed Assets (ISFATV NO + ISFATRV NO)</li>
-            <li>♻️ Used Materials (UMTR NO + UMTRV NO)</li>
+            <li>📦 Items Purchased (GRV) - ISTV NO + ISTRV NO + Plate No + Supplier</li>
+            <li>⛰️ Quarry Transfer (MDV) - MDV + Plate No + To</li>
+            <li>📤 Transfer To Projects (ISTV) - ISTV NO + Plate No + To</li>
         </ul>
     </div>
 @endif
@@ -297,7 +273,7 @@
 <script>
 $(document).ready(function() {
     $('.select2-search').select2({
-        placeholder: '🔍 Search location...',
+        placeholder: '🔍 Search project by code or name...',
         allowClear: true,
         width: '100%',
     });
