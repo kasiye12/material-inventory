@@ -30,6 +30,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/items/data', [ItemController::class, 'getData'])->name('items.data');
     Route::get('/items/search', [ItemController::class, 'search'])->name('items.search');
     Route::post('/items/{id}/update-price', [ItemController::class, 'updatePrice'])->name('items.update-price');
+    Route::post('/items/import', [ItemController::class, 'import'])->name('items.import');
     Route::resource('items', ItemController::class);
     
     // Categories
@@ -71,4 +72,12 @@ Route::middleware(['auth'])->group(function () {
     // Activity Logs
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
     Route::get('/activity-logs/data', [ActivityLogController::class, 'getData'])->name('activity-logs.data');
+});
+
+// Database Backups - Admin only
+Route::middleware(['auth', 'can:manage users'])->group(function () {
+    Route::get('/backups', [App\Http\Controllers\BackupController::class, 'index'])->name('backups.index');
+    Route::post('/backups/create', [App\Http\Controllers\BackupController::class, 'create'])->name('backups.create');
+    Route::get('/backups/download/{filename}', [App\Http\Controllers\BackupController::class, 'download'])->name('backups.download');
+    Route::delete('/backups/{filename}', [App\Http\Controllers\BackupController::class, 'delete'])->name('backups.delete');
 });

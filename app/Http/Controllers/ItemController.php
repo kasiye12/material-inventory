@@ -7,6 +7,8 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Yajra\DataTables\Facades\DataTables;
 use App\Services\ActivityLogger;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Imports\ItemsImport;
 
 class ItemController extends Controller
 {
@@ -23,23 +25,34 @@ class ItemController extends Controller
 
     public function getData(Request $request)
     {
-        $items = Item::with('category')->select('items.*');
+        // Use pagination and eager loading for performance
+        $items = Item::with(['category:id,name'])
+            ->select(['items.id', 'items.code', 'items.name', 'items.category_id', 
+                      'items.unit', 'items.item_type', 'items.unit_price',
+                      'items.min_stock_level', 'items.max_stock_level', 'items.is_active']);
         
         if ($request->category_id) {
             $items->where('category_id', $request->category_id);
+        }
+        if ($request->item_type) {
+            $items->where('item_type', $request->item_type);
         }
 
         return DataTables::of($items)
             ->addColumn('category_name', fn($item) => $item->category->name ?? 'N/A')
             ->addColumn('current_stock', function($item) {
-                $locationId = auth()->user()->location_id ?? 1;
-                return number_format($item->getCurrentStock($locationId), 2);
+                // Use caching for stock calculation
+                $cacheKey = 'item_stock_' . $item->id . '_' . (auth()->user()->location_id ?? 1);
+                return cache()->remember($cacheKey, 300, function() use ($item) {
+                    $locationId = auth()->user()->location_id ?? 1;
+                    return number_format($item->getCurrentStock($locationId), 2);
+                });
             })
             ->addColumn('status', function($item) {
                 $locationId = auth()->user()->location_id ?? 1;
                 $stock = $item->getCurrentStock($locationId);
-                if ($stock <= 0) return '<span class="badge bg-danger">Out of Stock</span>';
-                if ($stock <= $item->min_stock_level) return '<span class="badge bg-warning">Low Stock</span>';
+                if ($stock <= 0) return '<span class="badge bg-danger">Out</span>';
+                if ($stock <= $item->min_stock_level) return '<span class="badge bg-warning">Low</span>';
                 return '<span class="badge bg-success">In Stock</span>';
             })
             ->rawColumns(['status'])
@@ -53,6 +66,7 @@ class ItemController extends Controller
             'code' => 'required|string|unique:items,code',
             'category_id' => 'required|exists:categories,id',
             'unit' => 'required|string|max:20',
+            'item_type' => 'required|in:regular,fixed_asset,used_material,fuel',
         ]);
 
         $item = Item::create($request->all());
@@ -88,6 +102,7 @@ class ItemController extends Controller
             'code' => 'required|string|unique:items,code,'.$id,
             'category_id' => 'required|exists:categories,id',
             'unit' => 'required|string|max:20',
+            'item_type' => 'required|in:regular,fixed_asset,used_material,fuel',
         ]);
 
         $item->update($request->all());
@@ -97,62 +112,49 @@ class ItemController extends Controller
         return response()->json(['success' => true, 'message' => 'Item updated successfully!']);
     }
 
-    /**
-     * Update only the price of an item
-     */
     public function updatePrice(Request $request, $id)
     {
         try {
-            $request->validate([
-                'unit_price' => 'required|numeric|min:0.01',
-            ]);
-            
+            $request->validate(['unit_price' => 'required|numeric|min:0.01']);
             $item = Item::findOrFail($id);
-            $oldPrice = $item->unit_price;
             $item->unit_price = $request->unit_price;
             $item->save();
-            
-            ActivityLogger::log(
-                'UPDATE', 
-                'Item price updated: ' . $item->name . ' (ETB ' . $oldPrice . ' → ETB ' . $request->unit_price . ')',
-                'ITEM', $item->id, $item->name, 
-                'Items Management'
-            );
-            
-            return response()->json([
-                'success' => true, 
-                'message' => 'Price updated successfully! New price: ETB ' . number_format($item->unit_price, 2)
-            ]);
+            return response()->json(['success' => true, 'message' => 'Price updated!']);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false, 
-                'message' => 'Failed to update price: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => 'Failed to update price'], 500);
         }
     }
 
     public function destroy($id)
     {
-        $item = Item::findOrFail($id);
-        
-        ActivityLogger::log('DELETE', 'Item deleted: ' . $item->name, 'ITEM', $item->id, $item->name, 'Items Management');
-        
-        $item->delete();
-        
-        return response()->json(['success' => true, 'message' => 'Item deleted successfully!']);
+        Item::findOrFail($id)->delete();
+        return response()->json(['success' => true, 'message' => 'Item deleted!']);
     }
 
     public function search(Request $request)
     {
         $search = $request->get('q');
+        
         $items = Item::where('is_active', true)
             ->where(function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('code', 'like', "%{$search}%");
             })
-            ->limit(20)
-            ->get(['id', 'code', 'name', 'unit', 'category_id']);
+            ->limit(30)
+            ->get(['id', 'code', 'name', 'unit', 'category_id', 'item_type']);
 
         return response()->json($items);
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate(['file' => 'required|file|mimes:xlsx,xls,csv']);
+
+        try {
+            Excel::import(new ItemsImport(), $request->file('file'));
+            return response()->json(['success' => true, 'message' => 'Items imported successfully!']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Import failed: ' . $e->getMessage()], 422);
+        }
     }
 }

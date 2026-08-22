@@ -23,32 +23,30 @@ class StockTransactionController extends Controller
         }
         
         $transactionTypes = [
+            // Dual Vouchers (Out + In)
+            'ISTRV' => '📥 ISTRV - Inter Store Transfer (ISTV + ISTRV)',
+            'FARV' => '🏗️ FARV - Fixed Asset Receiving (ISFATV + ISFATRV)',
+            'UMTRV' => '♻️ UMTRV - Used Material Transfer (UMTR + UMTRV)',
+            
             // Regular Materials
-            'GRV' => '📥 GRV - Goods Received Voucher',
-            'ISTRV' => '📥 ISTRV - Inter Store Transfer Receiving',
+            'GRV' => '📦 GRV - Goods Received Voucher',
+            'SIV' => '📤 SIV - Store Issue Voucher',
+            'TRANSFER_OUT' => '📤 Transfer Out',
+            'BEGINNING_BALANCE' => '📊 Beginning Balance',
             
-            // Fixed Assets
-            'FARV' => '🏗️ FARV - Fixed Asset Receiving (ISFATV/ISFATRV)',
+            // Fuel
+            'FRV' => '⛽ FRV - Fuel Receiving Voucher',
+            'FIV' => '⛽ FIV - Fuel Issue Voucher',
             
-            // Used Materials
-            'UMTRV' => '♻️ UMTRV - Used Material Transfer Receiving (UMTR/UMTRV)',
-            
-            // Other Receiving
+            // Returns
+            'STORE_RETURN' => '🔄 Store Return',
             'SRV' => '🔄 SRV - Store Return Voucher',
+            
+            // Other
             'TTRV' => '📥 TTRV - Temporary Transfer Receiving',
             'FGRV' => '🏭 FGRV - Finished Good Receiving',
-            'FRV' => '⛽ FRV - Fuel Receiving Voucher',
-            'BEGINNING_BALANCE' => '📊 BEGINNING_BALANCE - Opening Stock',
-            
-            // Issue/Transfer Out
-            'SIV' => '📤 SIV - Store Issue Voucher',
-            'TRANSFER_OUT' => '📤 TRANSFER_OUT - Transfer Out',
-            'FIV' => '⛽ FIV - Fuel Issue Voucher',
-            'UMIV' => '♻️ UMIV - Used Material Issue Voucher',
-            'UMTV' => '♻️ UMTV - Used Material Transfer Voucher',
-            
-            // Return
-            'STORE_RETURN' => '🔄 STORE_RETURN - Store Return',
+            'UMIV' => '♻️ UMIV - Used Material Issue',
+            'UMTV' => '♻️ UMTV - Used Material Transfer',
         ];
 
         return view('transactions.index', compact('locations', 'transactionTypes'));
@@ -92,21 +90,13 @@ class StockTransactionController extends Controller
                 $badges = [
                     'GRV' => 'success', 'ISTRV' => 'info', 'SIV' => 'warning',
                     'TRANSFER_OUT' => 'danger', 'STORE_RETURN' => 'primary',
-                    'BEGINNING_BALANCE' => 'secondary',
-                    'SRV' => 'primary', 'FIV' => 'warning', 'UMIV' => 'secondary',
-                    'TTRV' => 'info', 'FARV' => 'dark', 'UMTV' => 'secondary',
-                    'UMTRV' => 'info', 'FGRV' => 'success', 'FRV' => 'warning',
+                    'BEGINNING_BALANCE' => 'secondary', 'SRV' => 'primary',
+                    'FIV' => 'warning', 'UMIV' => 'secondary', 'TTRV' => 'info',
+                    'FARV' => 'dark', 'UMTV' => 'secondary', 'UMTRV' => 'info',
+                    'FGRV' => 'success', 'FRV' => 'warning',
                 ];
                 $badge = $badges[$t->transaction_type] ?? 'secondary';
                 return '<span class="badge bg-' . $badge . '">' . $t->transaction_type . '</span>';
-            })
-            ->addColumn('voucher_out', function($t) {
-                // Transfer Out / Issue voucher number
-                return $t->reference_number ?? '-';
-            })
-            ->addColumn('voucher_in', function($t) {
-                // Receiving voucher number
-                return $t->document_number ?? '-';
             })
             ->rawColumns(['type_badge'])
             ->make(true);
@@ -131,6 +121,7 @@ class StockTransactionController extends Controller
         // OUT types
         $outTypes = ['SIV', 'TRANSFER_OUT', 'FIV', 'UMIV', 'UMTV'];
 
+        // Validate locations
         if (in_array($type, $outTypes)) {
             if (!$request->from_location_id) {
                 return response()->json(['success' => false, 'message' => 'From Location is required'], 422);
@@ -147,6 +138,7 @@ class StockTransactionController extends Controller
             }
         }
 
+        // Store transaction
         $transaction = StockTransaction::create([
             'transaction_date' => $request->transaction_date,
             'transaction_type' => $type,
@@ -154,9 +146,9 @@ class StockTransactionController extends Controller
             'from_location_id' => $request->from_location_id,
             'to_location_id' => $request->to_location_id,
             'quantity' => $request->quantity,
-            'reference_number' => $request->reference_number,
-            'document_number' => $request->document_number,
-            'remarks' => $request->remarks,
+            'reference_number' => $request->reference_number, // Out Voucher No
+            'document_number' => $request->document_number,   // In Voucher No
+            'remarks' => $request->remarks,                   // Plate No / Supplier / Notes
             'created_by' => $user->id,
         ]);
 

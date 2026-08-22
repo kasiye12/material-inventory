@@ -59,7 +59,7 @@
                     <tr>
                         <th>#</th><th>Date</th><th>Trans No</th><th>Type</th>
                         <th>Item</th><th>Qty</th><th>Unit</th><th>From</th><th>To</th>
-                        <th>Out No</th><th>In No</th><th>Actions</th>
+                        <th>Out No</th><th>In No</th><th>Remark</th><th>Actions</th>
                     </tr>
                 </thead>
             </table>
@@ -91,34 +91,33 @@
                             <label class="form-label fw-bold">Transaction Type *</label>
                             <select class="form-select" id="trans_type" name="transaction_type" onchange="updateFormFields()" required>
                                 <option value="">-- Select Type --</option>
-                                <optgroup label="📥 Dual Vouchers (Out + In)">
+                                <optgroup label="📥 DUAL VOUCHERS (Out + In)">
                                     <option value="ISTRV">ISTRV - Inter Store Transfer (ISTV + ISTRV)</option>
                                     <option value="FARV">FARV - Fixed Asset Receiving (ISFATV + ISFATRV)</option>
                                     <option value="UMTRV">UMTRV - Used Material Transfer (UMTR + UMTRV)</option>
                                 </optgroup>
-                                <optgroup label="📥 Single Receiving Vouchers (IN only)">
+                                <optgroup label="📦 Regular Materials (Single Voucher)">
                                     <option value="GRV">GRV - Goods Received Voucher</option>
+                                    <option value="SIV">SIV - Store Issue Voucher</option>
+                                    <option value="TRANSFER_OUT">Transfer Out</option>
+                                    <option value="BEGINNING_BALANCE">Beginning Balance</option>
+                                </optgroup>
+                                <optgroup label="⛽ Fuel">
+                                    <option value="FRV">FRV - Fuel Receiving Voucher</option>
+                                    <option value="FIV">FIV - Fuel Issue Voucher</option>
+                                </optgroup>
+                                <optgroup label="🔄 Returns">
+                                    <option value="STORE_RETURN">Store Return</option>
                                     <option value="SRV">SRV - Store Return Voucher</option>
+                                </optgroup>
+                                <optgroup label="📥 Other Receiving">
                                     <option value="TTRV">TTRV - Temporary Transfer Receiving</option>
                                     <option value="FGRV">FGRV - Finished Good Receiving</option>
-                                    <option value="FRV">FRV - Fuel Receiving Voucher</option>
-                                    <option value="BEGINNING_BALANCE">BEGINNING_BALANCE - Opening Stock</option>
-                                </optgroup>
-                                <optgroup label="📤 Issue Vouchers (OUT only)">
-                                    <option value="SIV">SIV - Store Issue Voucher</option>
-                                    <option value="TRANSFER_OUT">TRANSFER_OUT - Transfer Out</option>
-                                    <option value="FIV">FIV - Fuel Issue Voucher</option>
-                                    <option value="UMIV">UMIV - Used Material Issue Voucher</option>
-                                    <option value="UMTV">UMTV - Used Material Transfer Voucher</option>
-                                </optgroup>
-                                <optgroup label="🔄 Return">
-                                    <option value="STORE_RETURN">STORE_RETURN - Store Return</option>
                                 </optgroup>
                             </select>
                         </div>
                     </div>
 
-                    <!-- Info Alert -->
                     <div id="typeInfo" class="alert alert-info mb-3" style="display:none;">
                         <i class="fas fa-info-circle me-2"></i>
                         <span id="typeInfoText"></span>
@@ -129,11 +128,12 @@
                         <select class="form-select select2-item" id="trans_item" name="item_id" style="width: 100%;">
                             <option value="">🔍 Search item...</option>
                         </select>
+                        <small class="text-muted" id="itemTypeHint"></small>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3" id="fromLocationDiv">
-                            <label class="form-label fw-bold" id="fromLocationLabel">From Location *</label>
+                            <label class="form-label fw-bold" id="fromLocationLabel">From Location</label>
                             <select class="form-select select2-location" id="trans_from" name="from_location_id" style="width: 100%;">
                                 <option value="">🔍 Search location...</option>
                                 @foreach($locations as $loc)
@@ -142,7 +142,7 @@
                             </select>
                         </div>
                         <div class="col-md-6 mb-3" id="toLocationDiv">
-                            <label class="form-label fw-bold" id="toLocationLabel">To Location *</label>
+                            <label class="form-label fw-bold" id="toLocationLabel">To Location</label>
                             <select class="form-select select2-location" id="trans_to" name="to_location_id" style="width: 100%;">
                                 <option value="">🔍 Search location...</option>
                                 @foreach($locations as $loc)
@@ -162,44 +162,44 @@
                     <div id="dualVoucherFields" style="display:none;">
                         <div class="alert alert-warning">
                             <i class="fas fa-info-circle me-2"></i>
-                            Enter both Transfer Out and Receiving voucher numbers
+                            <strong id="dualVoucherTitle">Enter BOTH voucher numbers:</strong>
                         </div>
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold text-danger" id="outVoucherLabel">
                                     <i class="fas fa-arrow-up me-1"></i> Transfer Out No
                                 </label>
-                                <input type="text" class="form-control" id="voucher_out" name="voucher_out" 
-                                       placeholder="Enter transfer out voucher number">
+                                <input type="text" class="form-control" id="voucher_out" 
+                                       placeholder="Transfer out voucher number">
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-bold text-success" id="inVoucherLabel">
                                     <i class="fas fa-arrow-down me-1"></i> Receiving No
                                 </label>
-                                <input type="text" class="form-control" id="voucher_in" name="voucher_in" 
-                                       placeholder="Enter receiving voucher number">
+                                <input type="text" class="form-control" id="voucher_in" 
+                                       placeholder="Receiving voucher number">
                             </div>
                         </div>
                     </div>
 
-                    <!-- STANDARD FIELDS for other types -->
+                    <!-- STANDARD FIELDS for single voucher types -->
                     <div class="row" id="standardRefFields">
                         <div class="col-md-6 mb-3">
-                            <label class="form-label" id="refNumberLabel">Reference Number</label>
+                            <label class="form-label fw-bold" id="stdRefLabel">Reference Number</label>
                             <input type="text" class="form-control" id="trans_ref" name="reference_number" 
                                    placeholder="Enter reference number">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label" id="docNumberLabel">Document Number</label>
+                            <label class="form-label fw-bold" id="stdDocLabel">Document Number</label>
                             <input type="text" class="form-control" id="trans_doc" name="document_number" 
                                    placeholder="Enter document number">
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Remarks (Plate No / Supplier)</label>
-                        <textarea class="form-control" id="trans_remarks" name="remarks" rows="2" 
-                                  placeholder="Plate No, Supplier name, or other notes..."></textarea>
+                        <label class="form-label fw-bold" id="remarksLabel">Remark</label>
+                        <input type="text" class="form-control" id="trans_remarks" name="remarks" 
+                               placeholder="Plate No, Supplier name, or notes">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -226,7 +226,12 @@ $(document).ready(function() {
             url: "{{ route('items.search') }}",
             dataType: 'json',
             delay: 300,
-            data: function(params) { return { q: params.term }; },
+            data: function(params) {
+                return { 
+                    q: params.term,
+                    
+                };
+            },
             processResults: function(data) {
                 return {
                     results: data.map(function(item) {
@@ -272,8 +277,9 @@ $(document).ready(function() {
             { data: 'item_unit' },
             { data: 'from_location' },
             { data: 'to_location' },
-            { data: 'voucher_out' },
-            { data: 'voucher_in' },
+            { data: 'reference_number', defaultContent: '-' },
+            { data: 'document_number', defaultContent: '-' },
+            { data: 'remarks', defaultContent: '-' },
             { 
                 data: null, orderable: false, searchable: false,
                 render: function(data) {
@@ -303,11 +309,8 @@ $(document).ready(function() {
         
         // For dual voucher types, map fields
         if (['ISTRV', 'FARV', 'UMTRV'].includes(type)) {
-            var outNo = $('#voucher_out').val() || '';
-            var inNo = $('#voucher_in').val() || '';
-            
-            $('input[name="reference_number"]').val(outNo);
-            $('input[name="document_number"]').val(inNo);
+            $('input[name="reference_number"]').val($('#voucher_out').val() || '');
+            $('input[name="document_number"]').val($('#voucher_in').val() || '');
         }
         
         $.ajax({
@@ -325,9 +328,20 @@ $(document).ready(function() {
     });
 });
 
+function getItemTypeForTransaction() {
+    var type = $('#trans_type').val();
+    switch(type) {
+        case 'FRV': case 'FIV': return 'fuel';
+        case 'FARV': return 'fixed_asset';
+        case 'UMTRV': case 'UMIV': case 'UMTV': return 'used_material';
+        default: return 'regular';
+    }
+}
+
 function updateFormFields() {
     var type = $('#trans_type').val();
     var infoText = '';
+    var itemTypeHint = '';
     
     $('#fromLocationDiv').show();
     $('#toLocationDiv').show();
@@ -336,49 +350,96 @@ function updateFormFields() {
     $('#dualVoucherFields').hide();
     $('#standardRefFields').show();
     
-    var inTypes = ['GRV', 'SRV', 'TTRV', 'FGRV', 'FRV', 'BEGINNING_BALANCE', 'STORE_RETURN'];
-    var outTypes = ['SIV', 'TRANSFER_OUT', 'FIV', 'UMIV', 'UMTV'];
     var dualTypes = ['ISTRV', 'FARV', 'UMTRV'];
     
     if (dualTypes.includes(type)) {
-        // Dual voucher types - show both Out and In fields
+        // Show dual voucher fields
         $('#dualVoucherFields').show();
         $('#standardRefFields').hide();
-        $('#fromLocationLabel').html('Transfer From (Source)');
+        $('#fromLocationLabel').html('Transfer From');
         $('#toLocationLabel').html('Receive To <span class="text-danger">*</span>');
         $('#trans_to').prop('required', true);
         
-        // Update labels based on type
         if (type === 'ISTRV') {
-            infoText = 'Inter Store Transfer - Enter both ISTV NO (Out) and ISTRV NO (Receiving)';
+            infoText = 'Inter Store Transfer - BOTH ISTV (Out) and ISTRV (Receiving) required';
+            itemTypeHint = '📦 Regular Materials';
+            $('#dualVoucherTitle').text('Enter BOTH voucher numbers: ISTV + ISTRV');
             $('#outVoucherLabel').html('<i class="fas fa-arrow-up me-1"></i> ISTV NO (Transfer Out)');
-            $('#inVoucherLabel').html('<i class="fas fa-arrow-down me-1"></i> ISTRV NO (Receiving) *');
+            $('#inVoucherLabel').html('<i class="fas fa-arrow-down me-1"></i> ISTRV NO (Receiving)');
         } else if (type === 'FARV') {
-            infoText = 'Fixed Asset Receiving - Enter both ISFATV NO (Out) and ISFATRV NO (Receiving)';
+            infoText = 'Fixed Asset Receiving - BOTH ISFATV (Out) and ISFATRV (Receiving) required';
+            itemTypeHint = '🏗️ Fixed Asset items';
+            $('#dualVoucherTitle').text('Enter BOTH voucher numbers: ISFATV + ISFATRV');
             $('#outVoucherLabel').html('<i class="fas fa-arrow-up me-1"></i> ISFATV NO (Transfer Out)');
-            $('#inVoucherLabel').html('<i class="fas fa-arrow-down me-1"></i> ISFATRV NO (Receiving) *');
+            $('#inVoucherLabel').html('<i class="fas fa-arrow-down me-1"></i> ISFATRV NO (Receiving)');
         } else if (type === 'UMTRV') {
-            infoText = 'Used Material Transfer - Enter both UMTR NO (Out) and UMTRV NO (Receiving)';
+            infoText = 'Used Material Transfer - BOTH UMTR (Out) and UMTRV (Receiving) required';
+            itemTypeHint = '♻️ Used Material items';
+            $('#dualVoucherTitle').text('Enter BOTH voucher numbers: UMTR + UMTRV');
             $('#outVoucherLabel').html('<i class="fas fa-arrow-up me-1"></i> UMTR NO (Transfer Out)');
-            $('#inVoucherLabel').html('<i class="fas fa-arrow-down me-1"></i> UMTRV NO (Receiving) *');
+            $('#inVoucherLabel').html('<i class="fas fa-arrow-down me-1"></i> UMTRV NO (Receiving)');
         }
-    } else if (inTypes.includes(type)) {
-        infoText = 'Receiving transaction - items added to stock';
-        $('#fromLocationDiv').hide();
-        $('#toLocationLabel').html('Receive To <span class="text-danger">*</span>');
-        $('#trans_to').prop('required', true);
-    } else if (outTypes.includes(type)) {
-        infoText = 'Issue transaction - items removed from stock';
-        $('#toLocationDiv').hide();
-        $('#fromLocationLabel').html('Issue From <span class="text-danger">*</span>');
-        $('#trans_from').prop('required', true);
     } else {
-        $('#typeInfo').hide();
-        return;
+        // Single voucher types
+        switch(type) {
+            case 'GRV':
+                infoText = 'Goods Received Voucher';
+                itemTypeHint = '📦 Regular Materials';
+                $('#fromLocationDiv').hide();
+                $('#toLocationLabel').html('Receive To <span class="text-danger">*</span>');
+                $('#trans_to').prop('required', true);
+                $('#stdRefLabel').text('ISTV NO');
+                $('#stdDocLabel').text('Supplier Invoice No');
+                break;
+            case 'FRV':
+                infoText = 'Fuel Receiving Voucher';
+                itemTypeHint = '⛽ Fuel items';
+                $('#fromLocationDiv').hide();
+                $('#toLocationLabel').html('Receive To <span class="text-danger">*</span>');
+                $('#trans_to').prop('required', true);
+                $('#stdRefLabel').text('FRV NO.');
+                $('#stdDocLabel').text('Supplier Name');
+                $('#remarksLabel').text('Plate No');
+                break;
+            case 'SIV':
+                infoText = 'Store Issue Voucher';
+                itemTypeHint = '📦 Regular Materials';
+                $('#fromLocationLabel').html('Issue From <span class="text-danger">*</span>');
+                $('#trans_from').prop('required', true);
+                $('#toLocationDiv').hide();
+                $('#stdRefLabel').text('SIV Pad Ref. No.');
+                $('#stdDocLabel').text('');
+                break;
+            case 'FIV':
+                infoText = 'Fuel Issue Voucher';
+                itemTypeHint = '⛽ Fuel items';
+                $('#fromLocationLabel').html('Issue From <span class="text-danger">*</span>');
+                $('#trans_from').prop('required', true);
+                $('#toLocationDiv').hide();
+                $('#stdRefLabel').text('FIV Pad Ref. No.');
+                $('#stdDocLabel').text('Vehicle/Equipment No');
+                break;
+            case 'TRANSFER_OUT':
+                infoText = 'Transfer Out';
+                itemTypeHint = '📦 Regular Materials';
+                $('#fromLocationLabel').html('Transfer From <span class="text-danger">*</span>');
+                $('#trans_from').prop('required', true);
+                $('#toLocationLabel').html('Transfer To <span class="text-danger">*</span>');
+                $('#trans_to').prop('required', true);
+                $('#stdRefLabel').text('Out/SIV NO');
+                $('#stdDocLabel').text('Transfer Order No');
+                break;
+            default:
+                $('#typeInfo').hide();
+                $('#itemTypeHint').text('');
+                return;
+        }
     }
     
     $('#typeInfoText').text(infoText);
     $('#typeInfo').show();
+    $('#itemTypeHint').text(itemTypeHint);
+    $('#trans_item').val(null).trigger('change');
 }
 
 function resetForm() {
@@ -389,6 +450,7 @@ function resetForm() {
     $('#trans_to').val(null).trigger('change');
     $('#trans_type').val('');
     $('#typeInfo').hide();
+    $('#itemTypeHint').text('');
     $('#dualVoucherFields').hide();
     $('#standardRefFields').show();
     $('#modalTitle').html('<i class="fas fa-plus-circle me-2"></i>New Transaction');
@@ -407,8 +469,8 @@ function viewTransaction(id) {
                     <tr><th>Quantity</th><td>${data.quantity} ${data.item?.unit}</td></tr>
                     <tr><th>From</th><td>${data.from_location?.name || '-'}</td></tr>
                     <tr><th>To</th><td>${data.to_location?.name || '-'}</td></tr>
-                    <tr><th>Out Voucher No</th><td>${data.reference_number || '-'}</td></tr>
-                    <tr><th>In Voucher No</th><td>${data.document_number || '-'}</td></tr>
+                    <tr><th>Out Voucher</th><td>${data.reference_number || '-'}</td></tr>
+                    <tr><th>In Voucher</th><td>${data.document_number || '-'}</td></tr>
                     <tr><th>Remark</th><td>${data.remarks || '-'}</td></tr>
                 </table>
             `,
@@ -423,9 +485,17 @@ function editTransaction(id) {
         $('#trans_date').val(data.transaction_date);
         $('#trans_type').val(data.transaction_type);
         $('#trans_qty').val(data.quantity);
-        $('#trans_ref').val(data.reference_number);
-        $('#trans_doc').val(data.document_number);
         $('#trans_remarks').val(data.remarks);
+        
+        updateFormFields();
+        
+        if (['ISTRV', 'FARV', 'UMTRV'].includes(data.transaction_type)) {
+            $('#voucher_out').val(data.reference_number);
+            $('#voucher_in').val(data.document_number);
+        } else {
+            $('#trans_ref').val(data.reference_number);
+            $('#trans_doc').val(data.document_number);
+        }
         
         if (data.item) {
             var option = new Option(data.item.code + ' - ' + data.item.name, data.item_id, true, true);
@@ -438,13 +508,6 @@ function editTransaction(id) {
             $('#trans_to').val(data.to_location_id).trigger('change');
         }
         
-        // Populate dual voucher fields
-        if (['ISTRV', 'FARV', 'UMTRV'].includes(data.transaction_type)) {
-            $('#voucher_out').val(data.reference_number);
-            $('#voucher_in').val(data.document_number);
-        }
-        
-        updateFormFields();
         $('#modalTitle').html('<i class="fas fa-edit me-2"></i>Edit Transaction');
         $('#transactionModal').modal('show');
     });
@@ -481,5 +544,6 @@ function resetFilters() {
 .select2-dropdown { z-index: 1060 !important; }
 #typeInfo { transition: all 0.3s ease; }
 optgroup { font-weight: bold; }
+#itemTypeHint { font-size: 11px; font-style: italic; }
 </style>
 @endsection

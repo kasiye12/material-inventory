@@ -12,37 +12,31 @@ class Item extends Model
 
     protected $fillable = [
         'code', 'name', 'description', 'category_id', 'unit',
-        'unit_price', 'min_stock_level', 'max_stock_level', 'is_active'
+        'item_type', 'unit_price', 'min_stock_level', 'max_stock_level', 'is_active'
     ];
 
     protected $casts = [
         'unit_price' => 'decimal:2',
         'min_stock_level' => 'decimal:2',
         'max_stock_level' => 'decimal:2',
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
     ];
+
+    // Item type constants
+    const TYPE_REGULAR = 'regular';
+    const TYPE_FIXED_ASSET = 'fixed_asset';
+    const TYPE_USED_MATERIAL = 'used_material';
+    const TYPE_FUEL = 'fuel';
 
     // IN transaction types (add to stock)
     public static $inTypes = [
-        'GRV',              // Goods Received Voucher
-        'ISTRV',            // Inter Store Transfer Receiving Voucher
-        'STORE_RETURN',     // Store Return
-        'BEGINNING_BALANCE', // Opening Stock
-        'SRV',              // Store Return Voucher
-        'TTRV',             // Temporary Transfer Receiving Voucher
-        'FARV',             // Fixed Asset Receiving Voucher
-        'UMTRV',            // Used Material Transfer Receiving Voucher
-        'FGRV',             // Finished Good Receiving Voucher
-        'FRV',              // Fuel Receiving Voucher
+        'GRV', 'ISTRV', 'STORE_RETURN', 'BEGINNING_BALANCE',
+        'SRV', 'TTRV', 'FARV', 'UMTRV', 'FGRV', 'FRV'
     ];
 
     // OUT transaction types (subtract from stock)
     public static $outTypes = [
-        'SIV',              // Store Issue Voucher
-        'TRANSFER_OUT',     // Transfer Out
-        'FIV',              // Fuel Issue Voucher
-        'UMIV',             // Used Material Issue Voucher
-        'UMTV',             // Used Material Transfer Voucher
+        'SIV', 'TRANSFER_OUT', 'FIV', 'UMIV', 'UMTV'
     ];
 
     public function category()
@@ -82,5 +76,32 @@ class Item extends Model
             ->sum('quantity');
             
         return max(0, round($received - $issued, 2));
+    }
+
+    public function getItemTypeLabel()
+    {
+        $labels = [
+            self::TYPE_REGULAR => 'Regular Material',
+            self::TYPE_FIXED_ASSET => 'Fixed Asset',
+            self::TYPE_USED_MATERIAL => 'Used Material',
+            self::TYPE_FUEL => 'Fuel',
+        ];
+        
+        return $labels[$this->item_type] ?? 'Regular Material';
+    }
+
+    public function getItemTypeBadge()
+    {
+        $colors = [
+            self::TYPE_REGULAR => 'success',
+            self::TYPE_FIXED_ASSET => 'primary',
+            self::TYPE_USED_MATERIAL => 'warning',
+            self::TYPE_FUEL => 'info',
+        ];
+        
+        $color = $colors[$this->item_type] ?? 'secondary';
+        $label = $this->getItemTypeLabel();
+        
+        return '<span class="badge bg-' . $color . '">' . $label . '</span>';
     }
 }

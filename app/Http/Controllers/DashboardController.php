@@ -15,78 +15,65 @@ class DashboardController extends Controller
         $user = Auth::user();
         $locationId = $user->location_id ?? 1;
         $accessibleIds = $user->getAccessibleProjectIds();
+        $isReportOnly = $user->hasAnyRole(['gm', 'manager', 'checker']);
         
-        // Stats
+        // Base stats
         $totalItems = Item::where('is_active', true)->count();
         $totalLocations = count($accessibleIds);
         
-        $todayTransactions = StockTransaction::whereDate('created_at', Carbon::today())
-            ->when(!$user->isHighLevelRole(), function($q) use ($accessibleIds) {
-                return $q->where(function($sub) use ($accessibleIds) {
-                    $sub->whereIn('from_location_id', $accessibleIds)
-                        ->orWhereIn('to_location_id', $accessibleIds);
-                });
-            })
-            ->count();
+        // Transaction stats
+        if ($user->isHighLevelRole()) {
+            $todayTransactions = StockTransaction::whereDate('created_at', Carbon::today())->count();
+            $weekTransactions = StockTransaction::whereBetween('created_at', [Carbon::now('Africa/Addis_Ababa')->startOfWeek(), Carbon::now('Africa/Addis_Ababa')->endOfWeek()])->count();
+            $monthTransactions = StockTransaction::whereMonth('created_at', Carbon::now('Africa/Addis_Ababa')->month)->count();
+        } else {
+            $todayTransactions = StockTransaction::whereDate('created_at', Carbon::today())
+                ->where(function($q) use ($accessibleIds) {
+                    $q->whereIn('from_location_id', $accessibleIds)
+                      ->orWhereIn('to_location_id', $accessibleIds);
+                })->count();
+            $weekTransactions = StockTransaction::whereBetween('created_at', [Carbon::now('Africa/Addis_Ababa')->startOfWeek(), Carbon::now('Africa/Addis_Ababa')->endOfWeek()])
+                ->where(function($q) use ($accessibleIds) {
+                    $q->whereIn('from_location_id', $accessibleIds)
+                      ->orWhereIn('to_location_id', $accessibleIds);
+                })->count();
+            $monthTransactions = StockTransaction::whereMonth('created_at', Carbon::now('Africa/Addis_Ababa')->month)
+                ->where(function($q) use ($accessibleIds) {
+                    $q->whereIn('from_location_id', $accessibleIds)
+                      ->orWhereIn('to_location_id', $accessibleIds);
+                })->count();
+        }
         
-        // This week transactions
-        $weekTransactions = StockTransaction::whereBetween('created_at', [Carbon::now('Africa/Addis_Ababa')->startOfWeek(), Carbon::now('Africa/Addis_Ababa')->endOfWeek()])
-            ->when(!$user->isHighLevelRole(), function($q) use ($accessibleIds) {
-                return $q->where(function($sub) use ($accessibleIds) {
-                    $sub->whereIn('from_location_id', $accessibleIds)
-                        ->orWhereIn('to_location_id', $accessibleIds);
-                });
-            })
-            ->count();
+        // Recent transactions (limit 10)
+        if ($isReportOnly) {
+            $recentTransactions = StockTransaction::with(['item', 'fromLocation', 'toLocation'])
+                ->latest()->take(10)->get();
+        } elseif (!$user->isHighLevelRole()) {
+            $recentTransactions = StockTransaction::with(['item', 'fromLocation', 'toLocation'])
+                ->where(function($q) use ($accessibleIds) {
+                    $q->whereIn('from_location_id', $accessibleIds)
+                      ->orWhereIn('to_location_id', $accessibleIds);
+                })
+                ->latest()->take(10)->get();
+        } else {
+            $recentTransactions = StockTransaction::with(['item', 'fromLocation', 'toLocation'])
+                ->latest()->take(10)->get();
+        }
         
-        // This month transactions
-        $monthTransactions = StockTransaction::whereMonth('created_at', Carbon::now('Africa/Addis_Ababa')->month)
-            ->whereYear('created_at', Carbon::now('Africa/Addis_Ababa')->year)
-            ->when(!$user->isHighLevelRole(), function($q) use ($accessibleIds) {
-                return $q->where(function($sub) use ($accessibleIds) {
-                    $sub->whereIn('from_location_id', $accessibleIds)
-                        ->orWhereIn('to_location_id', $accessibleIds);
-                });
-            })
-            ->count();
-        
-        // Recent transactions
-        $recentTransactions = StockTransaction::with(['item', 'fromLocation', 'toLocation', 'creator'])
-            ->when(!$user->isHighLevelRole(), function($q) use ($accessibleIds) {
-                return $q->where(function($sub) use ($accessibleIds) {
-                    $sub->whereIn('from_location_id', $accessibleIds)
-                        ->orWhereIn('to_location_id', $accessibleIds);
-                });
-            })
-            ->latest()
-            ->take(10)
-            ->get();
-        
-        // Low stock items
-        $lowStockItems = Item::where('is_active', true)
+        // Low stock items - LIMITED TO 5 for dashboard
+        $allLowStockItems = Item::where('is_active', true)
             ->get()
             ->filter(function($item) use ($locationId) {
                 return $item->getCurrentStock($locationId) <= $item->min_stock_level;
             });
         
-        // Transaction type summary
-        $typeSummary = StockTransaction::whereMonth('created_at', Carbon::now('Africa/Addis_Ababa')->month)
-            ->when(!$user->isHighLevelRole(), function($q) use ($accessibleIds) {
-                return $q->where(function($sub) use ($accessibleIds) {
-                    $sub->whereIn('from_location_id', $accessibleIds)
-                        ->orWhereIn('to_location_id', $accessibleIds);
-                });
-            })
-            ->selectRaw('transaction_type, COUNT(*) as count, SUM(quantity) as total_qty')
-            ->groupBy('transaction_type')
-            ->get()
-            ->mapWithKeys(function($item) {
-                return [$item->transaction_type => [
-                    'count' => $item->count,
-                    'total_qty' => $item->total_qty
-                ]];
-            });
-
+        // Show only 5 on dashboard
+        $lowStockItems = $allLowStockItems->take(5);
+        $totalLowStockCount = $allLowStockItems->count();
+        
+        $userRole = $user->roles->first()->name ?? 'user';
+        $roleLabel = ucwords(str_replace('_', ' ', $userRole));
+        
         return view('dashboard', compact(
             'totalItems',
             'totalLocations',
@@ -95,7 +82,10 @@ class DashboardController extends Controller
             'monthTransactions',
             'recentTransactions',
             'lowStockItems',
-            'typeSummary'
+            'totalLowStockCount',
+            'isReportOnly',
+            'userRole',
+            'roleLabel'
         ));
     }
 }

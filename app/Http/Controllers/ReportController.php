@@ -81,16 +81,41 @@ class ReportController extends Controller
         
         $selectedLocation = Location::find($locationId);
         
-        $items = Item::with('category')
-            ->where('is_active', true)
-            ->when($request->category_id, fn($q) => $q->where('category_id', $request->category_id))
-            ->get()
-            ->map(function($item) use ($locationId) {
-                $item->current_stock = $this->calculateLocationStock($item->id, $locationId);
-                return $item;
+        // Build items query with search and category filter
+        $itemsQuery = Item::with('category')
+            ->where('is_active', true);
+        
+        // Apply search filter
+        if ($request->search) {
+            $searchTerm = $request->search;
+            $itemsQuery->where(function($q) use ($searchTerm) {
+                $q->where('name', 'like', "%{$searchTerm}%")
+                  ->orWhere('code', 'like', "%{$searchTerm}%");
             });
+        }
+        
+        // Apply category filter
+        if ($request->category_id) {
+            $itemsQuery->where('category_id', $request->category_id);
+        }
+        
+        // Get items
+        $items = $itemsQuery->get()->map(function($item) use ($locationId) {
+            $item->current_stock = $this->calculateLocationStock($item->id, $locationId);
+            return $item;
+        });
+        
+        // Pagination
+        $page = $request->page ?? 1;
+        $perPage = $request->per_page ?? 100;
+        $totalItems = $items->count();
+        $totalPages = ceil($totalItems / $perPage);
+        $paginatedItems = $items->forPage($page, $perPage);
 
-        return view('reports.stock-balance', compact('items', 'locations', 'categories', 'request', 'locationId', 'selectedLocation'));
+        return view('reports.stock-balance', compact(
+            'items', 'paginatedItems', 'locations', 'categories', 'request',
+            'locationId', 'selectedLocation', 'page', 'perPage', 'totalItems', 'totalPages'
+        ));
     }
 
     public function weeklyTransfer(Request $request)
@@ -138,12 +163,11 @@ class ReportController extends Controller
         $weekNumber = Carbon::parse($dateFrom)->weekOfYear;
         
         $summary = [
-            'total_grv' => StockTransaction::where('transaction_type', 'GRV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('to_location_id', $accessibleIds))->sum('quantity'),
-            'total_siv' => StockTransaction::where('transaction_type', 'SIV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('from_location_id', $accessibleIds))->sum('quantity'),
-            'total_transfer' => StockTransaction::where('transaction_type', 'TRANSFER_OUT')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('from_location_id', $accessibleIds))->sum('quantity'),
-            'total_return' => StockTransaction::whereIn('transaction_type', ['STORE_RETURN', 'SRV'])->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('to_location_id', $accessibleIds))->sum('quantity'),
-            'total_fuel' => StockTransaction::whereIn('transaction_type', ['FRV', 'FIV'])->whereBetween('transaction_date', [$dateFrom, $dateTo])->sum('quantity'),
-            'total_transactions' => StockTransaction::whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), function($q) use ($accessibleIds) { return $q->where(function($sub) use ($accessibleIds) { $sub->whereIn('from_location_id', $accessibleIds)->orWhereIn('to_location_id', $accessibleIds); }); })->count(),
+            'total_grv' => StockTransaction::where('transaction_type', 'GRV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->sum('quantity'),
+            'total_siv' => StockTransaction::where('transaction_type', 'SIV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->sum('quantity'),
+            'total_transfer' => StockTransaction::where('transaction_type', 'TRANSFER_OUT')->whereBetween('transaction_date', [$dateFrom, $dateTo])->sum('quantity'),
+            'total_return' => StockTransaction::whereIn('transaction_type', ['STORE_RETURN', 'SRV'])->whereBetween('transaction_date', [$dateFrom, $dateTo])->sum('quantity'),
+            'total_transactions' => StockTransaction::whereBetween('transaction_date', [$dateFrom, $dateTo])->count(),
         ];
         
         return view('reports.weekly-report', compact('locations', 'categories', 'dateFrom', 'dateTo', 'weekNumber', 'summary'));
@@ -166,9 +190,9 @@ class ReportController extends Controller
         $monthName = Carbon::parse($dateFrom)->format('F Y');
         
         $summary = [
-            'total_grv' => StockTransaction::where('transaction_type', 'GRV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('to_location_id', $accessibleIds))->sum('quantity'),
-            'total_siv' => StockTransaction::where('transaction_type', 'SIV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('from_location_id', $accessibleIds))->sum('quantity'),
-            'total_transfer' => StockTransaction::where('transaction_type', 'TRANSFER_OUT')->whereBetween('transaction_date', [$dateFrom, $dateTo])->when(!$user->isHighLevelRole(), fn($q) => $q->whereIn('from_location_id', $accessibleIds))->sum('quantity'),
+            'total_grv' => StockTransaction::where('transaction_type', 'GRV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->sum('quantity'),
+            'total_siv' => StockTransaction::where('transaction_type', 'SIV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->sum('quantity'),
+            'total_transfer' => StockTransaction::where('transaction_type', 'TRANSFER_OUT')->whereBetween('transaction_date', [$dateFrom, $dateTo])->sum('quantity'),
             'total_return' => StockTransaction::whereIn('transaction_type', ['STORE_RETURN', 'SRV'])->whereBetween('transaction_date', [$dateFrom, $dateTo])->sum('quantity'),
             'total_istrv' => StockTransaction::where('transaction_type', 'ISTRV')->whereBetween('transaction_date', [$dateFrom, $dateTo])->sum('quantity'),
             'total_transactions' => StockTransaction::whereBetween('transaction_date', [$dateFrom, $dateTo])->count(),

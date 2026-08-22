@@ -6,19 +6,33 @@
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-boxes me-2"></i>Items List</h5>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#itemModal" onclick="resetForm()">
-            <i class="fas fa-plus me-1"></i> Add New Item
-        </button>
+        <div>
+            <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#importModal">
+                <i class="fas fa-file-excel me-1"></i> Import Excel
+            </button>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#itemModal" onclick="resetForm()">
+                <i class="fas fa-plus me-1"></i> Add New Item
+            </button>
+        </div>
     </div>
     <div class="card-body">
         <!-- Filters -->
         <div class="row mb-3">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <select class="form-select" id="categoryFilter">
                     <option value="">All Categories</option>
                     @foreach($categories as $cat)
                     <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                     @endforeach
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" id="typeFilter">
+                    <option value="">All Types</option>
+                    <option value="regular">📦 Regular Material</option>
+                    <option value="fixed_asset">🏗️ Fixed Asset</option>
+                    <option value="used_material">♻️ Used Material</option>
+                    <option value="fuel">⛽ Fuel</option>
                 </select>
             </div>
         </div>
@@ -31,9 +45,10 @@
                         <th>Code</th>
                         <th>Item Name</th>
                         <th>Category</th>
+                        <th>Type</th>
                         <th>Unit</th>
                         <th>Unit Price</th>
-                        <th>Current Stock</th>
+                        <th>Stock</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -65,7 +80,7 @@
                         </div>
                     </div>
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
                             <label class="form-label fw-bold">Category *</label>
                             <select class="form-select" id="category_id" name="category_id" required>
                                 <option value="">Select Category</option>
@@ -74,27 +89,38 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">Item Type *</label>
+                            <select class="form-select" id="item_type" name="item_type" required>
+                                <option value="">Select Type</option>
+                                <option value="regular">📦 Regular Material</option>
+                                <option value="fixed_asset">🏗️ Fixed Asset</option>
+                                <option value="used_material">♻️ Used Material</option>
+                                <option value="fuel">⛽ Fuel</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
                             <label class="form-label fw-bold">Unit *</label>
                             <select class="form-select" id="unit" name="unit" required>
                                 <option value="">Select Unit</option>
                                 <option>Pcs</option><option>Bag</option><option>Kg</option>
                                 <option>Qtl</option><option>m3</option><option>Mtr</option>
                                 <option>Ltr</option><option>Set</option><option>Berga</option>
+                                <option>Trip</option><option>Roll</option>
                             </select>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Unit Price (ETB)</label>
+                            <label class="form-label">Unit Price (ETB)</label>
                             <input type="number" class="form-control" id="unit_price" name="unit_price" step="0.01" min="0">
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Min Stock</label>
+                            <label class="form-label">Min Stock</label>
                             <input type="number" class="form-control" id="min_stock_level" name="min_stock_level" step="0.01" min="0">
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label class="form-label fw-bold">Max Stock</label>
+                            <label class="form-label">Max Stock</label>
                             <input type="number" class="form-control" id="max_stock_level" name="max_stock_level" step="0.01" min="0">
                         </div>
                     </div>
@@ -108,37 +134,55 @@
     </div>
 </div>
 
-<!-- Price Update Modal -->
-<div class="modal fade" id="priceModal" tabindex="-1">
-    <div class="modal-dialog modal-sm">
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <div class="modal-header bg-warning text-dark">
-                <h6 class="modal-title">
-                    <i class="fas fa-tag me-2"></i>Update Price
-                </h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-file-excel me-2"></i>Import Items from Excel</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form id="priceForm">
+            <form id="importForm" enctype="multipart/form-data">
                 <div class="modal-body">
-                    <input type="hidden" id="price_item_id" name="id">
-                    <div class="text-center mb-3">
-                        <h6 id="price_item_name" class="mb-0"></h6>
-                        <small class="text-muted" id="price_item_code"></small>
+                    <div class="alert alert-info">
+                        <strong>📋 Excel Format Required:</strong>
+                        <br><br>
+                        <strong>Required Columns:</strong>
+                        <br>
+                        <code>code</code> - Item code (e.g., CEM-001)
+                        <br>
+                        <code>name</code> - Item name (e.g., PPC Cement 50kg)
+                        <br>
+                        <code>unit</code> - Unit (Pcs, Bag, Kg, Ltr, etc.)
+                        <br><br>
+                        <strong>Optional Columns:</strong>
+                        <br>
+                        <code>category</code> - Category name (auto-created if not exist)
+                        <br>
+                        <code>item_type</code> - regular, fixed_asset, used_material, fuel
+                        <br>
+                        <code>unit_price</code> - Price in ETB
+                        <br>
+                        <code>min_stock</code> - Minimum stock level
+                        <br>
+                        <code>max_stock</code> - Maximum stock level
                     </div>
+                    
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Current Price</label>
-                        <input type="text" class="form-control" id="current_price" disabled>
+                        <label class="form-label fw-bold">Select Excel File (.xlsx, .xls, .csv)</label>
+                        <input type="file" class="form-control" name="file" accept=".xlsx,.xls,.csv" required>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">New Price (ETB) *</label>
-                        <input type="number" class="form-control form-control-lg" id="new_price" 
-                               step="0.01" min="0.01" required placeholder="Enter new price">
+                    
+                    <div class="text-center">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="downloadTemplate()">
+                            <i class="fas fa-download me-1"></i> Download CSV Template
+                        </button>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-warning btn-sm">
-                        <i class="fas fa-save me-1"></i> Update Price
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-upload me-1"></i> Import Items
                     </button>
                 </div>
             </form>
@@ -154,21 +198,33 @@ $(document).ready(function() {
         serverSide: true,
         ajax: {
             url: "{{ route('items.data') }}",
-            data: function(d) { d.category_id = $('#categoryFilter').val(); }
+            data: function(d) {
+                d.category_id = $('#categoryFilter').val();
+                d.item_type = $('#typeFilter').val();
+            }
         },
         columns: [
             { data: null, render: (d,t,r,m) => m.row + 1, orderable: false },
             { data: 'code' },
             { data: 'name' },
             { data: 'category_name' },
+            { 
+                data: 'item_type',
+                render: function(data) {
+                    var labels = {
+                        'regular': '<span class="badge bg-success">📦 Regular</span>',
+                        'fixed_asset': '<span class="badge bg-primary">🏗️ Fixed Asset</span>',
+                        'used_material': '<span class="badge bg-warning">♻️ Used</span>',
+                        'fuel': '<span class="badge bg-info">⛽ Fuel</span>',
+                    };
+                    return labels[data] || data;
+                }
+            },
             { data: 'unit' },
             { 
                 data: 'unit_price',
                 render: function(data) {
-                    if (data && data > 0) {
-                        return '<span class="fw-bold">ETB ' + parseFloat(data).toFixed(2) + '</span>';
-                    }
-                    return '<span class="text-muted">Not set</span>';
+                    return data ? 'ETB ' + parseFloat(data).toFixed(2) : '-';
                 }
             },
             { data: 'current_stock' },
@@ -179,7 +235,7 @@ $(document).ready(function() {
                     return `
                         <div class="btn-group btn-group-sm">
                             <button class="btn btn-warning btn-sm" onclick="showPriceModal(${data.id})" title="Update Price">
-                                <i class="fas fa-tag"></i> Price
+                                <i class="fas fa-tag"></i>
                             </button>
                             <button class="btn btn-info btn-sm" onclick="editItem(${data.id})" title="Edit">
                                 <i class="fas fa-edit"></i>
@@ -196,9 +252,8 @@ $(document).ready(function() {
         pageLength: 25
     });
 
-    $('#categoryFilter').change(function() { table.ajax.reload(); });
+    $('#categoryFilter, #typeFilter').change(function() { table.ajax.reload(); });
 
-    // Item form submit
     $('#itemForm').submit(function(e) {
         e.preventDefault();
         var id = $('#item_id').val();
@@ -218,39 +273,60 @@ $(document).ready(function() {
         });
     });
 
-    // Price form submit
-    $('#priceForm').submit(function(e) {
+    // Import form
+    $('#importForm').submit(function(e) {
         e.preventDefault();
-        var id = $('#price_item_id').val();
-        var newPrice = $('#new_price').val();
+        var formData = new FormData(this);
+        
+        Swal.fire({
+            title: 'Importing items...',
+            text: 'Please wait',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
         
         $.ajax({
-            url: '/items/' + id + '/update-price',
+            url: "{{ route('items.import') }}",
             type: 'POST',
-            data: { unit_price: newPrice },
+            data: formData,
+            processData: false,
+            contentType: false,
             success: function(r) {
-                $('#priceModal').modal('hide');
+                Swal.close();
+                $('#importModal').modal('hide');
                 table.ajax.reload();
-                Toast.fire({ icon: 'success', title: 'Price updated successfully!' });
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Import Complete!',
+                    text: r.message
+                });
             },
             error: function(xhr) {
-                Toast.fire({ icon: 'error', title: 'Failed to update price' });
+                Swal.close();
+                var msg = xhr.responseJSON?.message || 'Import failed';
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Import Error',
+                    text: msg
+                });
             }
         });
     });
 });
 
-// Show price update modal
-function showPriceModal(id) {
-    $.get('/items/' + id, function(response) {
-        var item = response.item;
-        $('#price_item_id').val(item.id);
-        $('#price_item_name').text(item.name);
-        $('#price_item_code').text(item.code);
-        $('#current_price').val(item.unit_price ? 'ETB ' + parseFloat(item.unit_price).toFixed(2) : 'Not set');
-        $('#new_price').val(item.unit_price || '');
-        $('#priceModal').modal('show');
-    });
+function downloadTemplate() {
+    var csv = 'code,name,category,unit,item_type,unit_price,min_stock,max_stock\n';
+    csv += 'CEM-001,PPC Cement 50kg,Cement,Bag,regular,850,50,500\n';
+    csv += 'RBR-001,Rebar Diameter 8mm,Re-Bar,Qtl,regular,5200,30,300\n';
+    csv += 'FUEL-001,Gas Oil,Fuel & Oil,Ltr,fuel,80,100,1000\n';
+    csv += 'FA-001,Total Station,Equipment,Set,fixed_asset,450000,1,5\n';
+    csv += 'UM-001,Ega Sheet,Steel,Pcs,used_material,350,10,100\n';
+    
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'items_import_template.csv';
+    link.click();
 }
 
 function resetForm() {
@@ -266,12 +342,42 @@ function editItem(id) {
         $('#name').val(item.name);
         $('#code').val(item.code);
         $('#category_id').val(item.category_id);
+        $('#item_type').val(item.item_type);
         $('#unit').val(item.unit);
         $('#unit_price').val(item.unit_price);
         $('#min_stock_level').val(item.min_stock_level);
         $('#max_stock_level').val(item.max_stock_level);
         $('#modalTitle').text('Edit Item');
         $('#itemModal').modal('show');
+    });
+}
+
+function showPriceModal(id) {
+    $.get('/items/' + id, function(response) {
+        Swal.fire({
+            title: 'Update Price - ' + response.item.name,
+            html: `
+                <p>Current: ETB ${response.item.unit_price || 0}</p>
+                <input type="number" id="newPrice" class="form-control" value="${response.item.unit_price || ''}" step="0.01" placeholder="New price">
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Update',
+            preConfirm: () => {
+                return { price: $('#newPrice').val() };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '/items/' + id + '/update-price',
+                    type: 'POST',
+                    data: { unit_price: result.value.price },
+                    success: function() {
+                        $('#itemsTable').DataTable().ajax.reload();
+                        Toast.fire({ icon: 'success', title: 'Price updated!' });
+                    }
+                });
+            }
+        });
     });
 }
 

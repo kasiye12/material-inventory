@@ -45,6 +45,7 @@
                 <select class="form-select" name="section">
                     <option value="">All Sections</option>
                     <option value="regular" {{ request('section') == 'regular' ? 'selected' : '' }}>Regular Materials</option>
+                    <option value="fuel" {{ request('section') == 'fuel' ? 'selected' : '' }}>Fuel Receiving (FRV)</option>
                     <option value="fixed" {{ request('section') == 'fixed' ? 'selected' : '' }}>Fixed Assets</option>
                     <option value="used" {{ request('section') == 'used' ? 'selected' : '' }}>Used Materials</option>
                 </select>
@@ -98,7 +99,16 @@
     <div class="print-area">
         <div class="card">
             <div class="card-body p-4">
-                <!-- Header -->
+                
+                {{-- SECTION 1: Regular Materials --}}
+                @if(!$section || $section == 'regular')
+                @php
+                    $regularItems = (clone $baseQuery)->whereIn('transaction_type', ['GRV', 'ISTRV'])
+                        ->orderBy('transaction_date', 'asc')->get();
+                    $groupedRegular = $regularItems->groupBy(fn($d) => $d->item->category->name ?? 'Uncategorized');
+                @endphp
+                
+                @if($regularItems->count() > 0)
                 <div style="display: flex; align-items: center; justify-content: center; border-bottom: 3px double #1e293b; padding-bottom: 10px; margin-bottom: 15px; position: relative;">
                     <div style="position: absolute; left: 0;">
                         <img src="{{ asset('images/company-logo.png') }}" alt="Logo" style="width: 80px; height: 50px;">
@@ -117,14 +127,6 @@
                 <div style="text-align: center; margin-bottom: 10px;">
                     <strong>Daily Material Delivery Report</strong>
                 </div>
-                
-                {{-- ==================== SECTION 1: REGULAR MATERIALS ==================== --}}
-                @if(!$section || $section == 'regular')
-                @php
-                    $regularItems = (clone $baseQuery)->whereIn('transaction_type', ['GRV', 'ISTRV'])
-                        ->orderBy('transaction_date', 'asc')->get();
-                    $groupedRegular = $regularItems->groupBy(fn($d) => $d->item->category->name ?? 'Uncategorized');
-                @endphp
                 
                 <p style="text-align: center; text-decoration: underline; font-weight: bold; margin-bottom: 5px;">
                     List of Items Purchased through Head Office, Transfer from project & Main Store to {{ $locationName }}
@@ -171,18 +173,86 @@
                     </table>
                 </div>
                 @endif
+                @endif
                 
-                {{-- ==================== SECTION 2: FIXED ASSETS ==================== --}}
+                {{-- SECTION 2: Fuel Receiving Voucher (FRV) --}}
+                @if(!$section || $section == 'fuel')
+                @php
+                    $fuelItems = (clone $baseQuery)->where('transaction_type', 'FRV')
+                        ->orderBy('transaction_date', 'asc')->get();
+                @endphp
+                
+                @if($fuelItems->count() > 0)
+                <div style="display: flex; align-items: center; justify-content: center; border-bottom: 3px double #1e293b; padding-bottom: 10px; margin: 20px 0 15px; position: relative;">
+                    <div style="position: absolute; left: 0;">
+                        <img src="{{ asset('images/company-logo.png') }}" alt="Logo" style="width: 80px; height: 50px;">
+                    </div>
+                    <div style="text-align: center;">
+                        <h5 style="font-weight: bold; margin: 0;">ቲ. ኤን. ቲ. ኮንስትራክሽንና ንግድ ሥራዎች</h5>
+                        <p style="font-style: italic; margin: 0;">TNT Construction & Trading</p>
+                    </div>
+                    <div style="position: absolute; right: 0; font-size: 10px; text-align: right;">
+                        <strong>Document No:</strong> OF/TNT/SUP/032<br>
+                        <strong>Issue No:</strong> 1<br>
+                        <strong>Page No:</strong> Page 1 of 1
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <strong>Daily Material Delivery Report</strong>
+                </div>
+                
+                <p style="text-align: center; text-decoration: underline; font-weight: bold; margin-bottom: 5px;">
+                    List of Items Purchased On Site To {{ $locationName }}
+                </p>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered" style="font-size: 10px;">
+                        <thead>
+                            <tr style="background: #4b5563; color: #fff;">
+                                <th style="text-align: center;">No</th>
+                                <th>Item Description</th>
+                                <th style="text-align: center;">Unit</th>
+                                <th style="text-align: center;">Qty</th>
+                                <th style="text-align: center;">FRV NO.</th>
+                                <th style="text-align: center;">Delivery Date</th>
+                                <th style="text-align: center;">FROM</th>
+                                <th style="text-align: center;">Plate No</th>
+                                <th>Remark</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @php $counter = 1; @endphp
+                            @foreach($fuelItems as $d)
+                            <tr>
+                                <td style="text-align: center;">{{ $counter++ }}</td>
+                                <td>{{ $d->item->name }}</td>
+                                <td style="text-align: center;">{{ $d->item->unit }}</td>
+                                <td style="text-align: center;">{{ $d->quantity }}</td>
+                                <td style="text-align: center;">{{ $d->reference_number ?? '' }}</td>
+                                <td style="text-align: center;">{{ $d->transaction_date->format('d/m/Y') }}</td>
+                                <td style="text-align: center;">{{ $d->fromLocation->name ?? 'Head Office' }}</td>
+                                <td style="text-align: center;">{{ $d->remarks ?? '' }}</td>
+                                <td>{{ $d->document_number ?? '' }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @endif
+                @endif
+                
+                {{-- SECTION 3: Fixed Assets --}}
                 @if(!$section || $section == 'fixed')
                 @php
                     $fixedItems = (clone $baseQuery)->where('transaction_type', 'FARV')
                         ->orderBy('transaction_date', 'asc')->get();
                 @endphp
                 
+                @if($fixedItems->count() > 0)
                 <p style="text-align: center; text-decoration: underline; font-weight: bold; margin: 20px 0 5px;">
-                    List of Fixed Items Purchased Through Head Office, Transfer From Project & Main Store to {{ $locationName }}
+                    List of Fixed Items Purchased Through Head Office to {{ $locationName }}
                 </p>
-                
                 <div class="table-responsive">
                     <table class="table table-bordered" style="font-size: 10px;">
                         <thead>
@@ -200,7 +270,7 @@
                         </thead>
                         <tbody>
                             @php $counter = 1; @endphp
-                            @forelse($fixedItems as $d)
+                            @foreach($fixedItems as $d)
                             <tr>
                                 <td style="text-align: center;">{{ $counter++ }}</td>
                                 <td>{{ $d->item->name }}</td>
@@ -212,25 +282,24 @@
                                 <td style="text-align: center;">{{ $d->fromLocation->name ?? 'Head Office' }}</td>
                                 <td>{{ $d->remarks ?? '' }}</td>
                             </tr>
-                            @empty
-                            <tr><td colspan="9" style="text-align: center; padding: 15px; color: #999;">No fixed assets found</td></tr>
-                            @endforelse
+                            @endforeach
                         </tbody>
                     </table>
                 </div>
                 @endif
+                @endif
                 
-                {{-- ==================== SECTION 3: USED MATERIALS ==================== --}}
+                {{-- SECTION 4: Used Materials --}}
                 @if(!$section || $section == 'used')
                 @php
                     $usedItems = (clone $baseQuery)->where('transaction_type', 'UMTRV')
                         ->orderBy('transaction_date', 'asc')->get();
                 @endphp
                 
+                @if($usedItems->count() > 0)
                 <p style="text-align: center; text-decoration: underline; font-weight: bold; margin: 20px 0 5px;">
-                    List of Used Items Purchased through Head Office, Transfer From Project & Main Store to {{ $locationName }}
+                    List of Used Items Purchased through Head Office to {{ $locationName }}
                 </p>
-                
                 <div class="table-responsive">
                     <table class="table table-bordered" style="font-size: 10px;">
                         <thead>
@@ -248,7 +317,7 @@
                         </thead>
                         <tbody>
                             @php $counter = 1; @endphp
-                            @forelse($usedItems as $d)
+                            @foreach($usedItems as $d)
                             <tr>
                                 <td style="text-align: center;">{{ $counter++ }}</td>
                                 <td>{{ $d->item->name }}</td>
@@ -260,12 +329,11 @@
                                 <td style="text-align: center;">{{ $d->fromLocation->name ?? 'Head Office' }}</td>
                                 <td>{{ $d->remarks ?? '' }}</td>
                             </tr>
-                            @empty
-                            <tr><td colspan="9" style="text-align: center; padding: 15px; color: #999;">No used materials found</td></tr>
-                            @endforelse
+                            @endforeach
                         </tbody>
                     </table>
                 </div>
+                @endif
                 @endif
             </div>
         </div>
@@ -277,7 +345,8 @@
         <br><br>
         <strong>Report Sections:</strong>
         <ul class="mb-0">
-            <li>📦 Regular Materials (ISTV NO + ISTRV NO)</li>
+            <li>📦 Regular Materials (ISTV NO + ISTRV NO) - OF/TNT/SUP/033</li>
+            <li>⛽ Fuel Receiving (FRV NO) - OF/TNT/SUP/032</li>
             <li>🏗️ Fixed Assets (ISFATV NO + ISFATRV NO)</li>
             <li>♻️ Used Materials (UMTR NO + UMTRV NO)</li>
         </ul>
