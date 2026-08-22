@@ -25,11 +25,7 @@ class ItemController extends Controller
 
     public function getData(Request $request)
     {
-        // Use pagination and eager loading for performance
-        $items = Item::with(['category:id,name'])
-            ->select(['items.id', 'items.code', 'items.name', 'items.category_id', 
-                      'items.unit', 'items.item_type', 'items.unit_price',
-                      'items.min_stock_level', 'items.max_stock_level', 'items.is_active']);
+        $items = Item::with('category')->select('items.*');
         
         if ($request->category_id) {
             $items->where('category_id', $request->category_id);
@@ -41,18 +37,14 @@ class ItemController extends Controller
         return DataTables::of($items)
             ->addColumn('category_name', fn($item) => $item->category->name ?? 'N/A')
             ->addColumn('current_stock', function($item) {
-                // Use caching for stock calculation
-                $cacheKey = 'item_stock_' . $item->id . '_' . (auth()->user()->location_id ?? 1);
-                return cache()->remember($cacheKey, 300, function() use ($item) {
-                    $locationId = auth()->user()->location_id ?? 1;
-                    return number_format($item->getCurrentStock($locationId), 2);
-                });
+                $locationId = auth()->user()->location_id ?? 1;
+                return number_format($item->getCurrentStock($locationId), 2);
             })
             ->addColumn('status', function($item) {
                 $locationId = auth()->user()->location_id ?? 1;
                 $stock = $item->getCurrentStock($locationId);
-                if ($stock <= 0) return '<span class="badge bg-danger">Out</span>';
-                if ($stock <= $item->min_stock_level) return '<span class="badge bg-warning">Low</span>';
+                if ($stock <= 0) return '<span class="badge bg-danger">Out of Stock</span>';
+                if ($stock <= $item->min_stock_level) return '<span class="badge bg-warning">Low Stock</span>';
                 return '<span class="badge bg-success">In Stock</span>';
             })
             ->rawColumns(['status'])
@@ -66,10 +58,20 @@ class ItemController extends Controller
             'code' => 'required|string|unique:items,code',
             'category_id' => 'required|exists:categories,id',
             'unit' => 'required|string|max:20',
-            'item_type' => 'required|in:regular,fixed_asset,used_material,fuel',
+            'item_type' => 'nullable|in:regular,fixed_asset,used_material,fuel',
         ]);
 
-        $item = Item::create($request->all());
+        $item = Item::create([
+            'name' => $request->name,
+            'code' => $request->code,
+            'category_id' => $request->category_id,
+            'unit' => $request->unit,
+            'item_type' => $request->item_type ?? 'regular',
+            'unit_price' => $request->unit_price ?? 0,
+            'min_stock_level' => $request->min_stock_level ?? 0,
+            'max_stock_level' => $request->max_stock_level ?? 0,
+            'is_active' => true,
+        ]);
 
         ActivityLogger::log('CREATE', 'Item created: ' . $item->name, 'ITEM', $item->id, $item->name, 'Items Management');
 
@@ -97,15 +99,25 @@ class ItemController extends Controller
     {
         $item = Item::findOrFail($id);
         
+        // Only validate fields that are present
         $request->validate([
-            'name' => 'required|string|max:255',
-            'code' => 'required|string|unique:items,code,'.$id,
-            'category_id' => 'required|exists:categories,id',
-            'unit' => 'required|string|max:20',
-            'item_type' => 'required|in:regular,fixed_asset,used_material,fuel',
+            'name' => 'sometimes|required|string|max:255',
+            'code' => 'sometimes|required|string|unique:items,code,'.$id,
+            'category_id' => 'sometimes|required|exists:categories,id',
+            'unit' => 'sometimes|required|string|max:20',
+            'item_type' => 'nullable|in:regular,fixed_asset,used_material,fuel',
         ]);
 
-        $item->update($request->all());
+        $item->update([
+            'name' => $request->name ?? $item->name,
+            'code' => $request->code ?? $item->code,
+            'category_id' => $request->category_id ?? $item->category_id,
+            'unit' => $request->unit ?? $item->unit,
+            'item_type' => $request->item_type ?? $item->item_type ?? 'regular',
+            'unit_price' => $request->unit_price ?? $item->unit_price,
+            'min_stock_level' => $request->min_stock_level ?? $item->min_stock_level,
+            'max_stock_level' => $request->max_stock_level ?? $item->max_stock_level,
+        ]);
 
         ActivityLogger::log('UPDATE', 'Item updated: ' . $item->name, 'ITEM', $item->id, $item->name, 'Items Management');
 

@@ -339,6 +339,7 @@ function editItem(id) {
     $.get('/items/' + id, function(response) {
         var item = response.item;
         $('#item_id').val(item.id);
+        $('#item_type').val(item.item_type || 'regular');
         $('#name').val(item.name);
         $('#code').val(item.code);
         $('#category_id').val(item.category_id);
